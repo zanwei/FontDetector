@@ -1,7 +1,7 @@
 
-# fontDetector
+# FontDetector
 
-fontDetector is a tool created by humans and ChatGPT-4 to view fonts on web pages
+FontDetector is a tool created by humans and ChatGPT-4 to view fonts on web pages
 
 # Basic Usage 
 
