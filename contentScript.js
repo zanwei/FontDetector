@@ -34,8 +34,6 @@ function injectCSS() {
   document.head.appendChild(style);
 }
 
-
-
 injectCSS();
 
 function createTooltip() {
@@ -57,7 +55,7 @@ function showTooltip(event, tooltip) {
   const letterSpacing = style.letterSpacing;
   const lineHeight = style.lineHeight;
   const textAlign = style.textAlign;
-  const fontWeight = style.fontWeight; // 获取 font-weight
+  const fontWeight = style.fontWeight;
 
   tooltip.style.display = 'block';
   tooltip.style.opacity = '1';
@@ -116,8 +114,6 @@ function addMouseListeners() {
     showTooltip(event, tooltip); 
   });
 
-  
-
   document.addEventListener('mouseout', (event) => {
     if (!isActive) {
       return;
@@ -141,23 +137,33 @@ function removeMouseListeners() {
   document.removeEventListener('mouseout', hideTooltip);
 }
 
-// 修改 chrome.runtime.onMessage.addListener
+// 增强插件的反应速度
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'activateExtension') {
     if (!isActive) {
-      isActive = true;  
-      tooltip = createTooltip();
-      document.addEventListener('keydown', handleKeyDown);
-      addMouseListeners(); // 添加鼠标事件监听器
+      isActive = true;
+      initialize();
     }
   } else if (request.action === 'deactivateExtension') {
     if (isActive) {
-      hideTooltip(tooltip);
-      isActive = false;  
-      document.removeEventListener('keydown', handleKeyDown);
-      removeMouseListeners(); // 移除鼠标事件监听器
+      deinitialize();
+      isActive = false;
     }
   }
 });
 
-// ...
+function initialize() {
+  injectCSS();
+  tooltip = createTooltip();
+  document.addEventListener('keydown', handleKeyDown);
+  addMouseListeners(); // 添加鼠标事件监听器
+}
+
+function deinitialize() {
+  document.removeEventListener('keydown', handleKeyDown);
+  removeMouseListeners(); // 移除鼠标事件监听器
+  if (tooltip) {
+    tooltip.remove();
+    tooltip = null;
+  }
+}
