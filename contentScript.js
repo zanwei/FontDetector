@@ -4,9 +4,9 @@ function injectCSS() {
 
   const css = `
     #fontInfoTooltip {
-      background-color: rgba(30, 30, 30, 0.8);
       backdrop-filter: blur(50px); /* 添加背景模糊 */ 
       border: 1px solid #2F2F2F; /* 添加 1px border */
+      background-color: rgba(30, 30, 30, 0.7);  
       font-family: 'Poppins', Arial, sans-serif;
       padding: 16px 16px; /* 调整上下 Padding */
       border-radius: 16px;
@@ -59,15 +59,9 @@ function createTooltip() {
   return tooltip;
 }
 
-function hasTextContent(element) {
-  return !!element.textContent.trim();
-}
 
 function showTooltip(event, tooltip) {
   const element = event.target;
-  if (!hasTextContent(element)) {
-    return;
-  }
   const style = getComputedStyle(element);
   const fontFamily = style.fontFamily;
   const fontSize = style.fontSize;
