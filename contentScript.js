@@ -1,4 +1,7 @@
 function injectCSS() {
+
+  const fontImport = "@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');";
+
   const css = `
     #fontInfoTooltip {
       background-color: #343434;
@@ -32,6 +35,7 @@ function injectCSS() {
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
+  
 }
 
 injectCSS();
