@@ -32,5 +32,5 @@ body {
   }
 
   #fontInfoTooltip {
-    transition: opacity 0.3s; /* 添加过渡效果 */
-  }
+    transition: opacity 0.3s;
+    }
