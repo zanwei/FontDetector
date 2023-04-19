@@ -8,7 +8,7 @@
 You can view your favorite fonts through it
 `font family`, `font weight`, `font size`, `letter spacing`, `line height`, and `text alignment`
 
-Using `default: Ctrl+Shift+X` `mac: Command+Shift+X` to run `FontDetector` in the browser
+Using `default: Ctrl + Shift + X` `mac: Command + Shift + X` to run `FontDetector` in the browser
 <br>  
 
 Click `ESC` to close `FontDetector` in the browser
