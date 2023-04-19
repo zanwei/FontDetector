@@ -6,7 +6,8 @@
   "permissions": [
     "activeTab",
     "tabs"
-  ],
+  ], 
+
   "background": {
     "service_worker": "background.js"
   },
@@ -17,7 +18,8 @@
     {
       "matches": ["<all_urls>"],
       "js": ["contentScript.js"],
-      "all_frames": true
+      "all_frames": true,
+      "css": ["popup.css"] 
     }
   ],
   "icons": {

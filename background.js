@@ -3,7 +3,7 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 function toggleExtension(tab) {
-  chrome.tabs.sendMessage(tab.id, { action: 'activateExtension' });
+  chrome.tabs.sendMessage(tab.id, { action: 'toggleExtension' });
 }
 
 chrome.commands.onCommand.addListener((command) => {
