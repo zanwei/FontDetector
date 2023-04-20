@@ -51,7 +51,7 @@ injectCSS();
 function createTooltip() {
   const tooltip = document.createElement('div');
   tooltip.setAttribute('id', 'fontInfoTooltip');
-  tooltip.style.position = 'fixed'; // 改为 fixed 定位
+  tooltip.style.position = 'absolute'; 
   tooltip.style.display = 'none';
   tooltip.style.zIndex = '1000000';
   // 添加到 <html> 元素下
@@ -138,17 +138,17 @@ function initialize() {
   injectCSS();
   tooltip = createTooltip();
   document.addEventListener('keydown', handleKeyDown);
-  addMouseListeners(); // 添加鼠标事件监听器
 }
+
 
 function deinitialize() {
   document.removeEventListener('keydown', handleKeyDown);
-  removeMouseListeners(); // 移除鼠标事件监听器
   if (tooltip) {
     tooltip.remove();
     tooltip = null;
   }
 }
+
 
 // 将这两个函数移到文件底部
 function addMouseListeners() {
@@ -166,17 +166,21 @@ function addMouseListeners() {
     }
   });
 
+  
+
 // 鼠标移动事件监听在 document 上
 document.addEventListener('mousemove', (event) => {
   if (!isActive || currentTarget && event.target !== currentTarget) return;
   showTooltip(event, tooltip);
   tooltip.style.left = event.pageX + 10 + 'px';
   tooltip.style.top = event.pageY + 10 + 'px';
-});
+});  
 }
 
-// 移除鼠标悬停和离开事件监听器
+
 function removeMouseListeners() {
   document.removeEventListener('mouseover', showTooltip);
   document.removeEventListener('mouseout', hideTooltip);
 }
+
+addMouseListeners(); 
