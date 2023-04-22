@@ -12,3 +12,7 @@ Using `default: Ctrl + Shift + X` `mac: Command + Shift + X` to run `FontDetecto
 <br>  
 
 Click `ESC` to close `FontDetector` in the browser
+
+# Chrome Web Store
+
+Download here https://chrome.google.com/webstore/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe
