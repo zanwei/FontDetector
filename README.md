@@ -1,4 +1,6 @@
 
+<img src="https://github.com/zanwei/FontDetector/blob/821cf3f4fa113457237f3bed1e62a5a97cc836aa/thumbnail.png" alt="">
+
 # FontDetector
 
 `FontDetector` is a tool created by humans and ChatGPT-4 to view fonts on web pages
