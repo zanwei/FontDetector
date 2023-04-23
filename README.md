@@ -22,6 +22,9 @@ Click `ESC` to close `FontDetector` in the browser
 ## About Me
 
 <a href="https://dribbble.com/Gis1on">Dribbble</a> ↗︎
+<br>
 <a href="https://twitter.com/zanweiguo">Twitter</a> ↗︎
+<br>
 <a href="https://www.instagram.com/zanwei.guo/)">Instagram</a> ↗︎
+<br>
 <a href="https://bento.me/zw">Bento</a> ↗︎
