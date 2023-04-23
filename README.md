@@ -19,14 +19,14 @@ Click `ESC` to close `FontDetector` in the browser
 
 # Chrome Web Store
 
-⏬ <a href="https://chrome.google.com/webstore/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe">Download here</a>
+⏬ <a href="https://chrome.google.com/webstore/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe" target="_blank">Download here</a>
 
 ## About Me
 
-<a href="https://dribbble.com/Gis1on">Dribbble ↗︎</a>
+<a href="https://dribbble.com/Gis1on" target="_blank">Dribbble ↗︎</a>
 <br>
-<a href="https://twitter.com/zanweiguo">Twitter ↗︎</a>
+<a href="https://twitter.com/zanweiguo" target="_blank">Twitter ↗︎</a>
 <br>
-<a href="https://www.instagram.com/zanwei.guo/)">Instagram ↗︎</a>
+<a href="https://www.instagram.com/zanwei.guo/" target="_blank">Instagram ↗︎</a>
 <br>
-<a href="https://bento.me/zw">Bento ↗︎</a>
+<a href="https://bento.me/zw" target="_blank">Bento ↗︎</a>
