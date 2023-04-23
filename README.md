@@ -3,7 +3,9 @@
 
 # FontDetector
 
-`FontDetector` is a tool created by humans and ChatGPT-4 to view fonts on web pages
+`FontDetector` simplifies the tedious process of determining fonts as you browse the web. No more switching between windows or searching through lines of code. Just hover over a font you like, and within three seconds you'll have the font name, saving a ton of time!
+
+`Hover`, `detect`, `select`. As easy as 1-2-3. An essential tool for any web designer or front-end developer.
 
 # Basic Usage 
 
