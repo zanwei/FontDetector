@@ -20,3 +20,8 @@ Click `ESC` to close `FontDetector` in the browser
 ⏬ <a href="https://chrome.google.com/webstore/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe">Download here</a>
 
 ## About Me
+
+<a href="https://dribbble.com/Gis1on">Dribbble</a> ↗︎
+<a href="https://twitter.com/zanweiguo">Twitter</a> ↗︎
+<a href="https://www.instagram.com/zanwei.guo/)">Instagram</a> ↗︎
+<a href="https://bento.me/zw">Bento</a> ↗︎
