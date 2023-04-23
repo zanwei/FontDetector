@@ -17,4 +17,4 @@ Click `ESC` to close `FontDetector` in the browser
 
 # Chrome Web Store
 
-Download here https://chrome.google.com/webstore/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe
+⏬ <a href="https://chrome.google.com/webstore/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe">Download here</a>
