@@ -1,5 +1,5 @@
 
-<img src="https://github.com/zanwei/FontDetector/blob/48490a336f0e5d2edb1f9e362c6d4c609ff5ba6e/thumbnail.png" alt="" wdith="770" height="410">
+<img src="https://github.com/zanwei/FontDetector/blob/48490a336f0e5d2edb1f9e362c6d4c609ff5ba6e/thumbnail.png" alt="" wdith="1000" height="400">
 
 # FontDetector
 
