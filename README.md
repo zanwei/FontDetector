@@ -26,5 +26,3 @@ Click `ESC` to close `FontDetector` in the browser
 <a href="https://twitter.com/zanweiguo" target="_blank">Twitter ↗︎</a>
 <br>
 <a href="https://www.instagram.com/zanwei.guo/" target="_blank">Instagram ↗︎</a>
-<br>
-<a href="https://bento.me/zw" target="_blank">Bento ↗︎</a>
