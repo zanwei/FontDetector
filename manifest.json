@@ -5,7 +5,6 @@
   "description": "Display font information on hover over text elements.",
   "permissions": [
     "activeTab",
-    "tabs"
   ], 
 
   "background": {
