@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "FontDetector",
-  "version": "1.1.2",
+  "version": "1.1.5",
   "description": "Display font information on hover over text elements.",
   "permissions": [
-    "activeTab",
+    "activeTab"
   ], 
 
   "background": {
