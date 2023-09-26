@@ -3,6 +3,14 @@ function injectCSS() {
   const fontImport = "@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');";
 
   const css = `
+    .font-detector {
+      color: #A8A8A8;
+    }
+
+    .font-detector span {
+      color: #fff;
+    }
+
     #fontInfoTooltip {
       backdrop-filter: blur(50px); /* 添加背景模糊 */ 
       border: 1px solid #2F2F2F; /* 添加 1px border */
@@ -49,7 +57,8 @@ function injectCSS() {
 injectCSS();
 
 function createTooltip() {
-  const tooltip = document.createElement('div');
+  const tooltip = document.createElement('div'); 
+  tooltip.classList.add('font-detector');
   tooltip.setAttribute('id', 'fontInfoTooltip');
   tooltip.style.position = 'absolute'; 
   tooltip.style.display = 'none';

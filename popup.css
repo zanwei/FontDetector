@@ -4,6 +4,7 @@ body {
     font-family: 'Poppins', Arial, sans-serif;
     margin: 0;
     padding: 0;
+    color: initial; 
   }
   
   .container {
@@ -15,4 +16,12 @@ body {
     margin-bottom: 10px;
     color: #A8A8A8;
     font-size: 16px; 
+  }
+
+  .font-detector {
+    color: #A8A8A8; 
+  }
+  
+  .font-detector span {
+    color: #fff;
   }
