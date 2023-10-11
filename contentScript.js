@@ -193,3 +193,9 @@ function removeMouseListeners() {
 }
 
 addMouseListeners(); 
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'toggleExtension') {
+    // 切换状态
+  } 
+});

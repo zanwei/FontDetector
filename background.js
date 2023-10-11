@@ -13,3 +13,20 @@ chrome.commands.onCommand.addListener((command) => {
     });
   }
 });
+
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+
+  if (request.action === 'toggleExtension') {
+
+    isActive = !isActive;
+
+    if (isActive) {
+      initialize();
+    } else {
+      deinitialize(); 
+    }
+
+  }
+
+});

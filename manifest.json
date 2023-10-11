@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FontDetector",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Display font information on hover over text elements.",
   "permissions": [
     "activeTab"
@@ -26,8 +26,8 @@
   "commands": {
     "toggle_font_detector": {
       "suggested_key": {
-        "default": "Ctrl+Shift+X",
-        "mac": "Command+Shift+X"
+        "default": "Shift+Ctrl+Z",
+        "mac": "Shift+Command+Z"
       },
       "description": "Toggle font detector"
     }
