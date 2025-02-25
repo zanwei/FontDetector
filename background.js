@@ -38,6 +38,25 @@ async function toggleExtension(tab) {
   }
 }
 
+// 检查内容脚本是否已加载
+async function checkContentScriptLoaded(tabId) {
+  try {
+    const response = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(tabId, { action: 'checkContentScriptLoaded' }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ loaded: false });
+        } else {
+          resolve(response || { loaded: false });
+        }
+      });
+    });
+    return response.loaded === true;
+  } catch (error) {
+    console.error('检查内容脚本加载状态时出错:', error);
+    return false;
+  }
+}
+
 chrome.commands.onCommand.addListener((command) => {
   if (command === TOGGLE_COMMAND) {
     chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
@@ -57,5 +76,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         });
       }
     });
+  }
+});
+
+// 监听来自内容脚本的消息
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'searchFontFamily') {
+    const fontFamily = request.fontFamily;
+    const formattedFontFamily = fontFamily.replace(/['"]/g, '').split(',')[0].trim();
+    
+    const url = `https://www.google.com/search?q=${encodeURIComponent(formattedFontFamily + ' font')}`;
+    chrome.tabs.create({ url });
+  } else if (request.action === 'deactivateExtension') {
+    // 如果需要在后台响应停用扩展的请求
+    console.log('收到扩展停用请求');
+    // 可以在这里执行其他相关操作
   }
 });
