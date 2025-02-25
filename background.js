@@ -84,20 +84,85 @@ async function toggleExtension(tab) {
     return;
   }
 
+  // 检查标签页URL是否支持
+  if (tab.url) {
+    const url = tab.url.toLowerCase();
+    if (url.startsWith('chrome:') || 
+        url.startsWith('chrome-extension:') || 
+        url.startsWith('about:') ||
+        url.startsWith('file:') ||
+        url.startsWith('view-source:') ||
+        url.startsWith('devtools:') ||
+        !url.startsWith('http')) {
+      console.log(`Cannot toggle extension on unsupported URL: ${url}`);
+      alert('FontDetector不支持在此页面上使用。请在普通网页上使用。');
+      return;
+    }
+  }
+
   try {
-    // Inject content script
-    await safeExecute(async () => {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['contentScript.js']
+    // 首先检查标签页状态
+    let canExecute = true;
+    try {
+      await new Promise((resolve, reject) => {
+        chrome.tabs.get(tab.id, function(currentTab) {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          
+          if (currentTab.status === 'error' || !currentTab.url.startsWith('http')) {
+            canExecute = false;
+            reject(new Error('Tab is showing error page or is not an http page'));
+            return;
+          }
+          
+          resolve();
+        });
       });
-    });
+    } catch (err) {
+      console.warn('Cannot toggle extension:', err.message);
+      alert('FontDetector无法在此页面上运行，可能是因为该页面是错误页面或受限页面。');
+      return;
+    }
+    
+    if (!canExecute) return;
+
+    // Inject content script
+    try {
+      await safeExecute(async () => {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['contentScript.js']
+        });
+      });
+    } catch (err) {
+      // 处理特定错误
+      if (err.message && (
+          err.message.includes('showing error page') || 
+          err.message.includes('cannot access a chrome') ||
+          err.message.includes('cannot be scripted due to'))) {
+        console.log('Cannot inject script on error or restricted page:', err.message);
+        alert('FontDetector无法在此页面上运行，可能是因为该页面是错误页面或受限页面。');
+        return;
+      }
+      // 对于其他错误，继续抛出
+      throw err;
+    }
 
     // Add delay to ensure script is properly loaded
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // Store the current activation state of the extension (assuming it will toggle)
     let isActivating = true;
+
+    // 发送信息前检查页面状态
+    try {
+      await chrome.tabs.get(tab.id);
+    } catch (err) {
+      console.warn('Tab no longer exists:', err);
+      return;
+    }
 
     // Send message to content script
     await safeExecute(async () => {
@@ -144,15 +209,55 @@ async function toggleExtension(tab) {
 }
 
 /**
- * Checks if the content script is loaded in the specified tab
- * @param {number} tabId - The ID of the tab to check
- * @returns {Promise<boolean>} - Whether the content script is loaded
+ * Checks if content script is loaded in the specified tab
+ * @param {number} tabId - Tab ID to check
+ * @returns {Promise<boolean>} - True if content script is loaded
  */
 async function checkContentScriptLoaded(tabId) {
+  // 首先检查标签页状态
+  try {
+    const tab = await new Promise((resolve, reject) => {
+      chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(tab);
+      });
+    });
+    
+    // 检查URL是否支持
+    const url = tab.url?.toLowerCase() || '';
+    if (url.startsWith('chrome:') || 
+        url.startsWith('chrome-extension:') || 
+        url.startsWith('about:') ||
+        url.startsWith('file:') ||
+        url.startsWith('view-source:') ||
+        url.startsWith('devtools:') ||
+        !url.startsWith('http') ||
+        tab.status === 'error') {
+      console.log(`Skipping content script check for unsupported URL: ${url}`);
+      return false;
+    }
+  } catch (err) {
+    console.warn('Error checking tab before content script check:', err.message);
+    return false;
+  }
+
   try {
     const response = await new Promise((resolve) => {
       chrome.tabs.sendMessage(tabId, { action: 'checkContentScriptLoaded' }, (response) => {
         if (chrome.runtime.lastError) {
+          const error = chrome.runtime.lastError.message;
+          console.log('Content script check error:', error);
+          
+          // 检查特定错误类型
+          if (error.includes('showing error page') || 
+              error.includes('cannot access a chrome') ||
+              error.includes('cannot be scripted due to')) {
+            console.log('Tab is showing error page or is restricted');
+          }
+          
           resolve({ loaded: false });
         } else {
           resolve(response || { loaded: false });
@@ -193,19 +298,64 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     return;
   }
   
-  if (changeInfo.status === 'complete' && tab.url && tab.url.indexOf('http') === 0) {
-    safeExecute(async () => {
-      const isLoaded = await checkContentScriptLoaded(tabId);
-      if (!isLoaded) {
-        console.log('Content script not loaded after tab update, injecting now...');
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['contentScript.js']
+  // 确保页面已完全加载并且URL是我们可以操作的
+  if (changeInfo.status === 'complete' && tab.url) {
+    // 跳过不支持的URL schemes和错误页面
+    const url = tab.url.toLowerCase();
+    if (url.startsWith('chrome:') || 
+        url.startsWith('chrome-extension:') || 
+        url.startsWith('about:') ||
+        url.startsWith('file:') ||
+        url.startsWith('view-source:') ||
+        url.startsWith('devtools:') ||
+        !url.startsWith('http')) {
+      console.log(`Skipping tab update for unsupported URL: ${url}`);
+      return;
+    }
+    
+    // 检查标签页状态
+    try {
+      chrome.tabs.get(tabId, function(currentTab) {
+        if (chrome.runtime.lastError) {
+          console.warn('Error getting tab:', chrome.runtime.lastError.message);
+          return;
+        }
+        
+        // 忽略出错的页面
+        if (currentTab.status === 'error' || !currentTab.url.startsWith('http')) {
+          console.log('Skipping error page or non-http page');
+          return;
+        }
+        
+        // 安全执行内容脚本注入
+        safeExecute(async () => {
+          try {
+            const isLoaded = await checkContentScriptLoaded(tabId);
+            if (!isLoaded) {
+              console.log('Content script not loaded after tab update, injecting now...');
+              await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['contentScript.js']
+              });
+            }
+          } catch (err) {
+            // 处理"Frame with ID 0 is showing error page"错误
+            if (err.message && (
+                err.message.includes('showing error page') || 
+                err.message.includes('cannot access a chrome') ||
+                err.message.includes('cannot be scripted due to'))) {
+              console.log('Skipping scripting on error or restricted page:', err.message);
+              return;
+            }
+            throw err; // 重新抛出其他错误
+          }
+        }).catch(error => {
+          console.error('Error handling tab update:', error);
         });
-      }
-    }).catch(error => {
-      console.error('Error handling tab update:', error);
-    });
+      });
+    } catch (err) {
+      console.error('Error in tab update listener:', err);
+    }
   }
 });
 

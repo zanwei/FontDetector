@@ -468,11 +468,10 @@ function injectCSS() {
       position: absolute;
       top: 10px;
       right: 10px;
-      width: 24px;
-      height: 24px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       background-color: rgba(60, 60, 60, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;

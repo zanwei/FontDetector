@@ -541,13 +541,11 @@
 
       .close-button {
         position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 24px;
-        height: 24px;
+        top: 14px;
+        right: 16px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
-        background-color: rgba(60, 60, 60, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.2);
         display: flex;
         align-items: center;
         justify-content: center;
