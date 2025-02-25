@@ -24,9 +24,8 @@
         "<all_urls>"
       ],
       "exclude_matches": [
-        "chrome://*/*",
-        "chrome-extension://*/*",
-        "https://chrome.google.com/webstore/*"
+        "*://chrome.google.com/webstore/*",
+        "*://*.chrome.google.com/*"
       ],
       "js": [
         "contentScript.js"
