@@ -559,20 +559,9 @@
         background-color: rgba(80, 80, 80, 0.9);
       }
 
-      .close-button:before, .close-button:after {
-        content: '';
-        position: absolute;
-        width: 12px;
-        height: 2px;
-        background-color: #FFFFFF;
-      }
-
-      .close-button:before {
-        transform: rotate(45deg);
-      }
-
-      .close-button:after {
-        transform: rotate(-45deg);
+      .close-button svg {
+        width: 16px;
+        height: 16px;
       }
 
       .fixed-tooltip {
@@ -691,6 +680,7 @@
       // Add close button
       const closeButton = document.createElement('div');
       closeButton.classList.add('close-button');
+      closeButton.innerHTML = `<?xml version="1.0" encoding="UTF-8"?><svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 8L40 40" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 40L40 8" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       closeButton.addEventListener('click', () => {
         // Remove from position set when closed
         fixedTooltipPositions.delete(positionKey);
