@@ -6,6 +6,162 @@
   let fixedTooltips = []; // array of fixed tooltips
   let animationFrameId; // for requestAnimationFrame
   let lastTooltipContent = ''; // cache tooltip content
+  let selectionTimeout = null; // for preventing multiple selection events
+  let isReinitializing = false; // prevent repeated initialization
+  let fixedTooltipPositions = new Set(); // track positions of created fixed tooltips
+  let isExtensionContextValid = true; // track extension context validity
+
+  // Try to capture all unhandled errors
+  window.addEventListener('error', function(event) {
+    if (event.error && event.error.message && event.error.message.includes('Extension context invalidated')) {
+      console.warn('Captured Extension context invalidated error, preparing to clean up resources...');
+      isExtensionContextValid = false;
+      cleanupResources(true); // Force cleanup
+    }
+  });
+
+  // Add a more robust error handling for Chrome extension context
+  try {
+    // Check if chrome runtime is available
+    if (chrome && chrome.runtime) {
+      // Add a listener for runtime connection to detect disconnection
+      chrome.runtime.onConnect.addListener(function(port) {
+        port.onDisconnect.addListener(function() {
+          if (chrome.runtime.lastError) {
+            console.warn('Port disconnected due to error:', chrome.runtime.lastError);
+            isExtensionContextValid = false;
+            cleanupResources(true); // Force cleanup
+          }
+        });
+      });
+      
+      // Add a listener for runtime.id to detect when extension is reloaded
+      function checkExtensionContext() {
+        try {
+          // This will throw if extension context is invalidated
+          const extensionId = chrome.runtime.id;
+          setTimeout(checkExtensionContext, 5000); // Check every 5 seconds
+        } catch (e) {
+          console.warn('Extension context check failed:', e);
+          isExtensionContextValid = false;
+          cleanupResources(true); // Force cleanup
+        }
+      }
+      
+      // Start periodic checking
+      setTimeout(checkExtensionContext, 5000);
+    }
+  } catch (e) {
+    console.warn('Error setting up extension context monitoring:', e);
+  }
+
+  /**
+   * Clean up all resources
+   * @param {boolean} force - Force cleanup even if already reinitializing
+   */
+  function cleanupResources(force = false) {
+    try {
+      // Only clean up resources if not already reinitializing or if forced
+      if (!isReinitializing || force) {
+        isReinitializing = true;
+        console.log('Cleaning up FontDetector resources...');
+        
+        isActive = false;
+        
+        // Safe removal of tooltip
+        if (tooltip) {
+          try { 
+            if (tooltip.parentNode) {
+              tooltip.parentNode.removeChild(tooltip);
+            } else {
+              tooltip.remove(); 
+            }
+          } catch(e) {
+            console.warn('Error removing tooltip:', e);
+          }
+          tooltip = null;
+        }
+        
+        // Clean up all fixed tooltips
+        try {
+          removeAllFixedTooltips();
+        } catch(e) {
+          console.warn('Error removing fixed tooltips:', e);
+          
+          // Fallback cleanup for fixed tooltips
+          try {
+            for (let i = 0; i < fixedTooltips.length; i++) {
+              try {
+                const t = fixedTooltips[i];
+                if (t && t.parentNode) {
+                  t.parentNode.removeChild(t);
+                }
+              } catch(e) {}
+            }
+            fixedTooltips = [];
+            
+            // Also try to remove any elements with font-detector class
+            const detectorElements = document.querySelectorAll('.font-detector');
+            for (let i = 0; i < detectorElements.length; i++) {
+              try {
+                const el = detectorElements[i];
+                if (el && el.parentNode) {
+                  el.parentNode.removeChild(el);
+                }
+              } catch(e) {}
+            }
+          } catch(e) {}
+        }
+        
+        // Remove all event listeners safely
+        try { removeMouseListeners(); } catch(e) {
+          console.warn('Error removing mouse listeners:', e);
+        }
+        
+        try { removeSelectionListener(); } catch(e) {
+          console.warn('Error removing selection listener:', e);
+        }
+        
+        try { document.removeEventListener('keydown', handleKeyDown); } catch(e) {
+          console.warn('Error removing keydown listener:', e);
+        }
+        
+        // Cancel all animation frame requests
+        if (animationFrameId) {
+          try { cancelAnimationFrame(animationFrameId); } catch(e) {
+            console.warn('Error canceling animation frame:', e);
+          }
+          animationFrameId = null;
+        }
+        
+        // Clear selection timeout
+        if (selectionTimeout) {
+          try { clearTimeout(selectionTimeout); } catch(e) {
+            console.warn('Error clearing selection timeout:', e);
+          }
+          selectionTimeout = null;
+        }
+        
+        // Clear position set
+        try { fixedTooltipPositions.clear(); } catch(e) {
+          console.warn('Error clearing position set:', e);
+        }
+        
+        console.log('FontDetector resource cleanup completed');
+        
+        // Allow reinitialization after delay
+        setTimeout(() => {
+          isReinitializing = false;
+        }, 2000);
+      }
+    } catch (e) {
+      console.error('Error occurred while cleaning up resources:', e);
+      // Reset reinitialization flag in case of error
+      setTimeout(() => {
+        isReinitializing = false;
+      }, 2000);
+    }
+  }
 
   /**
    * Use requestAnimationFrame for smooth animations
@@ -118,24 +274,24 @@
       const style = getComputedStyle(element);
       const color = style.color;
       
-      // 创建临时元素来解析任何格式的颜色
+      // Create a temporary element to parse any color format
       const tempEl = document.createElement('div');
       tempEl.style.color = color;
       tempEl.style.display = 'none';
       document.body.appendChild(tempEl);
       
-      // 获取计算后的颜色值（浏览器会将各种格式转换为rgb或rgba）
+      // Get the computed color value (browser will convert various formats to rgb or rgba)
       const computedColor = getComputedStyle(tempEl).color;
       document.body.removeChild(tempEl);
       
-      // 解析 RGB 或 RGBA 颜色
+      // Parse RGB or RGBA color
       const rgbMatch = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
       if (rgbMatch) {
         const r = parseInt(rgbMatch[1]);
         const g = parseInt(rgbMatch[2]);
         const b = parseInt(rgbMatch[3]);
         
-        // 转换为不同格式
+        // Convert to different formats
         const hex = rgbToHex(r, g, b);
         const lch = rgbToLCH(r, g, b);
         const hcl = rgbToHCL(r, g, b);
@@ -161,8 +317,13 @@
     isActive = !isActive;
     if (isActive) {
       initializeDetector();
+      // Send message to background script to change icon to active state
+      chrome.runtime.sendMessage({ action: 'updateIcon', iconState: 'active' });
     } else {
-      deinitializeDetector();
+      // Don't preserve fixed tooltips when deactivating extension
+      deinitializeDetector(false);
+      // Send message to background script to restore icon to default state
+      chrome.runtime.sendMessage({ action: 'updateIcon', iconState: 'inactive' });
     }
   }
 
@@ -172,8 +333,8 @@
    * @param {any} data - Debug data
    */
   function debug(message, data) {
-    // 用户可以通过设置 localStorage.fontDetectorDebug = 'true' 来开启调试
-    // 或者直接运行 window.fontDetectorDebug = true;
+    // Users can enable debugging by setting localStorage.fontDetectorDebug = 'true'
+    // or by directly running window.fontDetectorDebug = true;
     const debugMode = window.fontDetectorDebug === true || localStorage.getItem('fontDetectorDebug') === 'true';
     if (debugMode) {
       console.log(`[FontDetector] ${message}`, data || '');
@@ -194,14 +355,20 @@
 
   /**
    * Deinitialize the font detector
+   * @param {boolean} preserveFixedTooltips - whether to preserve fixed tooltips
    */
-  function deinitializeDetector() {
+  function deinitializeDetector(preserveFixedTooltips = false) {
     document.removeEventListener('keydown', handleKeyDown);
     if (tooltip) {
       tooltip.remove();
       tooltip = null;
     }
-    removeAllFixedTooltips();
+    
+    // Only remove fixed tooltips if not preserving them
+    if (!preserveFixedTooltips) {
+      removeAllFixedTooltips();
+    }
+    
     removeMouseListeners();
     removeSelectionListener();
     
@@ -211,19 +378,93 @@
       animationFrameId = null;
     }
     
-    console.log('Font detector deactivated');
+    console.log('Font detector deactivated' + (preserveFixedTooltips ? ' (fixed tooltips preserved)' : ''));
   }
 
   /**
    * Remove all fixed tooltips
    */
   function removeAllFixedTooltips() {
-    fixedTooltips.forEach(t => {
-      if (t && t.parentNode) {
-        t.remove();
+    try {
+      // Clear tracked positions
+      try {
+        fixedTooltipPositions.clear();
+      } catch (err) {
+        console.warn('Error clearing fixedTooltipPositions:', err);
       }
-    });
-    fixedTooltips = [];
+      
+      // Save current tooltips array and reset
+      let tooltipsToRemove = [];
+      try {
+        tooltipsToRemove = [...fixedTooltips];
+        fixedTooltips = [];
+      } catch (err) {
+        console.warn('Error copying fixedTooltips array:', err);
+        // Fallback: try to get tooltips from DOM
+        try {
+          tooltipsToRemove = Array.from(document.querySelectorAll('.fixed-tooltip'));
+        } catch (err2) {
+          console.warn('Error getting tooltips from DOM:', err2);
+          tooltipsToRemove = [];
+        }
+      }
+      
+      // Remove each tooltip
+      for (let i = 0; i < tooltipsToRemove.length; i++) {
+        try {
+          const t = tooltipsToRemove[i];
+          if (t) {
+            if (t.parentNode) {
+              t.parentNode.removeChild(t);
+            } else {
+              t.remove();
+            }
+          }
+        } catch (err) {
+          console.warn('Error removing fixed tooltip:', err);
+        }
+      }
+      
+      // Ensure all elements with .fixed-tooltip class are removed, in case of any missed
+      try {
+        const remainingTooltips = document.querySelectorAll('.fixed-tooltip');
+        for (let i = 0; i < remainingTooltips.length; i++) {
+          try {
+            const t = remainingTooltips[i];
+            if (t) {
+              if (t.parentNode) {
+                t.parentNode.removeChild(t);
+              } else {
+                t.remove();
+              }
+            }
+          } catch (err) {
+            console.warn('Error removing remaining tooltip:', err);
+          }
+        }
+      } catch (err) {
+        console.warn('Error getting remaining tooltips:', err);
+      }
+      
+      // Also remove any elements with font-detector class as a last resort
+      try {
+        const detectorElements = document.querySelectorAll('.font-detector:not(#fontInfoTooltip)');
+        for (let i = 0; i < detectorElements.length; i++) {
+          try {
+            const el = detectorElements[i];
+            if (el && el.parentNode) {
+              el.parentNode.removeChild(el);
+            }
+          } catch (err) {
+            console.warn('Error removing detector element:', err);
+          }
+        }
+      } catch (err) {
+        console.warn('Error getting detector elements:', err);
+      }
+    } catch (err) {
+      console.error('Error removing all fixed tooltips:', err);
+    }
   }
 
   /**
@@ -235,7 +476,7 @@
     const css = `
       .font-detector {
         color: #A8A8A8;
-        z-index: 2147483647 !important; /* 最高的z-index */
+        z-index: 2147483647 !important;
       }
 
       .font-detector span {
@@ -243,15 +484,15 @@
       }
 
       #fontInfoTooltip, .fixed-tooltip {
-        backdrop-filter: blur(50px); /* Background blur */ 
-        border: 1px solid #2F2F2F; /* 1px border */
+        backdrop-filter: blur(50px);
+        border: 1px solid #2F2F2F;
         background-color: rgba(30, 30, 30, 0.85);  
         font-family: 'Poppins', Arial, sans-serif;
-        padding: 16px 16px; /* Adjust padding */
+        padding: 16px 16px;
         border-radius: 16px;
-        width: 250px; /* Set width */
-        word-wrap: break-word; /* Automatic line break */
-        position: relative; /* For close button positioning */
+        width: 250px;
+        word-wrap: break-word;
+        position: relative;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         transition: opacity 0.15s ease;
         opacity: 1;
@@ -338,6 +579,45 @@
         position: absolute;
         z-index: 2147483647 !important;
       }
+
+      /* CSS for copy button and checkmark */
+      .copy-icon {
+        width: 24px;
+        height: 24px;
+        margin-left: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+        background-color: transparent;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      }
+
+      .copy-icon:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .copy-icon svg {
+        width: 14px;
+        height: 14px;
+        display: block; /* Ensure SVG has no extra space */
+      }
+
+      .value-with-copy {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      #fontInfoTooltip {
+        pointer-events: none;
+      }
+
+      #fontInfoTooltip .copy-icon {
+        pointer-events: auto;
+      }
     `;
 
     const style = document.createElement('style');
@@ -350,7 +630,7 @@
    * @returns {Element} - Tooltip DOM element
    */
   function createTooltip() {
-    // 如果已有tooltip，先移除
+    // If existing tooltip, remove first
     const existingTooltip = document.getElementById('fontInfoTooltip');
     if (existingTooltip) {
       existingTooltip.remove();
@@ -359,12 +639,12 @@
     const tooltip = document.createElement('div'); 
     tooltip.classList.add('font-detector');
     tooltip.setAttribute('id', 'fontInfoTooltip');
-    tooltip.style.position = 'fixed'; // 使用fixed定位
+    tooltip.style.position = 'fixed'; // Use fixed positioning
     tooltip.style.display = 'none';
-    tooltip.style.zIndex = '2147483647'; // 最高的z-index
-    tooltip.style.pointerEvents = 'none'; // 不阻挡鼠标事件
+    tooltip.style.zIndex = '2147483647'; // Highest z-index
+    tooltip.style.pointerEvents = 'none'; // Don't block mouse events
     
-    // 确保添加到body而不是documentElement，更可靠
+    // Ensure added to body rather than documentElement, more reliable
     document.body.appendChild(tooltip); 
     
     console.log('Tooltip created and added to DOM');
@@ -378,33 +658,63 @@
    * @returns {Element} - The created fixed tooltip
    */
   function createFixedTooltip(event, element) {
-    const fixedTooltip = document.createElement('div');
-    fixedTooltip.classList.add('font-detector', 'fixed-tooltip');
-    
-    // Calculate position - place below the selected text
-    const selection = window.getSelection();
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    
-    fixedTooltip.style.left = (window.pageXOffset + rect.left) + 'px';
-    fixedTooltip.style.top = (window.pageYOffset + rect.bottom + 10) + 'px';
-    
-    // Fill content
-    populateTooltipContent(fixedTooltip, element);
-    
-    // Add close button
-    const closeButton = document.createElement('div');
-    closeButton.classList.add('close-button');
-    closeButton.addEventListener('click', () => {
-      fixedTooltip.remove();
-      fixedTooltips = fixedTooltips.filter(t => t !== fixedTooltip);
-    });
-    fixedTooltip.appendChild(closeButton);
-    
-    document.documentElement.appendChild(fixedTooltip);
-    fixedTooltips.push(fixedTooltip);
-    
-    return fixedTooltip;
+    try {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return null;
+      
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      
+      // Generate position identifier
+      const positionKey = `${Math.round(rect.left)},${Math.round(rect.bottom)}`;
+      
+      // Check if position already has tooltip
+      if (fixedTooltipPositions.has(positionKey)) {
+        console.log('Position already has fixed tooltip, skipping creation');
+        return null;
+      }
+      
+      // Record new position
+      fixedTooltipPositions.add(positionKey);
+      
+      const fixedTooltip = document.createElement('div');
+      fixedTooltip.classList.add('font-detector', 'fixed-tooltip');
+      fixedTooltip.dataset.positionKey = positionKey;
+      
+      // Calculate position - place below the selected text
+      fixedTooltip.style.left = (window.pageXOffset + rect.left) + 'px';
+      fixedTooltip.style.top = (window.pageYOffset + rect.bottom + 10) + 'px';
+      
+      // Fill content
+      populateTooltipContent(fixedTooltip, element);
+      
+      // Add close button
+      const closeButton = document.createElement('div');
+      closeButton.classList.add('close-button');
+      closeButton.addEventListener('click', () => {
+        // Remove from position set when closed
+        fixedTooltipPositions.delete(positionKey);
+        fixedTooltip.remove();
+        fixedTooltips = fixedTooltips.filter(t => t !== fixedTooltip);
+      });
+      fixedTooltip.appendChild(closeButton);
+      
+      document.documentElement.appendChild(fixedTooltip);
+      fixedTooltips.push(fixedTooltip);
+      
+      return fixedTooltip;
+    } catch (err) {
+      console.error('Error creating fixed tooltip:', err);
+      // Remove from position set if error occurs
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const positionKey = `${Math.round(rect.left)},${Math.round(rect.bottom)}`;
+        fixedTooltipPositions.delete(positionKey);
+      }
+      return null;
+    }
   }
 
   /**
@@ -424,6 +734,10 @@
     // Get color information
     const colorInfo = getColorFromElement(element);
 
+    // Define SVG icon - adjust size to 16px
+    const copySvg = `<svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 12.4316V7.8125C13 6.2592 14.2592 5 15.8125 5H40.1875C41.7408 5 43 6.2592 43 7.8125V32.1875C43 33.7408 41.7408 35 40.1875 35H35.5163" stroke="#a7a7a7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M32.1875 13H7.8125C6.2592 13 5 14.2592 5 15.8125V40.1875C5 41.7408 6.2592 43 7.8125 43H32.1875C33.7408 43 35 41.7408 35 40.1875V15.8125C35 14.2592 33.7408 13 32.1875 13Z" fill="none" stroke="#a7a7a7" stroke-width="4" stroke-linejoin="round"/></svg>`;
+    const checkSvg = `<svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M43 11L16.875 37L5 25.1818" stroke="#2596FF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
     let content = `
       <div>Font family <a href="#" class="fontFamilyLink" data-font="${fontFamily}"><span>${fontFamily}</span></a></div>
       <div>Font weight <span>${fontWeight}</span></div>
@@ -436,11 +750,26 @@
     // Add color information
     if (colorInfo) {
       content += `
-        <div>Color <span class="color-value-container">
-          <span class="color-preview" style="background-color: ${colorInfo.hex}"></span>${colorInfo.hex}
+        <div>Color <span class="value-with-copy">
+          <span class="color-value-container">
+            <span class="color-preview" style="background-color: ${colorInfo.hex}"></span>${colorInfo.hex}
+          </span>
+          <span class="copy-icon" data-value="${colorInfo.hex}" title="Copy color value">
+            ${copySvg}
+          </span>
         </span></div>
-        <div>LCH <span>${colorInfo.lch}</span></div>
-        <div>HCL <span>${colorInfo.hcl}</span></div>
+        <div>LCH <span class="value-with-copy">
+          ${colorInfo.lch}
+          <span class="copy-icon" data-value="${colorInfo.lch}" title="Copy LCH value">
+            ${copySvg}
+          </span>
+        </span></div>
+        <div>HCL <span class="value-with-copy">
+          ${colorInfo.hcl}
+          <span class="copy-icon" data-value="${colorInfo.hcl}" title="Copy HCL value">
+            ${copySvg}
+          </span>
+        </span></div>
       `;
     }
 
@@ -470,6 +799,78 @@
         });
       });
     });
+
+    // Add copy icon click event
+    const copyIcons = tooltipElement.querySelectorAll('.copy-icon');
+    copyIcons.forEach(icon => {
+      icon.addEventListener('click', handleCopyClick);
+    });
+  }
+
+  /**
+   * Handle copy icon click
+   * @param {Event} event - Click event
+   */
+  function handleCopyClick(event) {
+    event.stopPropagation();
+    const icon = event.currentTarget;
+    const valueToCopy = icon.getAttribute('data-value');
+    
+    // Define SVG icon - adjust size to 16px
+    const checkSvg = `<svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M43 11L16.875 37L5 25.1818" stroke="#2596FF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(valueToCopy).then(() => {
+      // Change icon to checkmark
+      icon.innerHTML = checkSvg;
+      icon.classList.add('copied');
+      
+      // Set up clipboard monitoring to restore icon after clipboard content changes
+      monitorClipboard(icon, valueToCopy);
+      
+      debug('Copied to clipboard:', valueToCopy);
+    }).catch(err => {
+      console.error('Could not copy text:', err);
+    });
+  }
+
+  /**
+   * Monitor clipboard for changes
+   * @param {Element} icon - The copy icon element
+   * @param {string} originalText - The text that was copied
+   */
+  function monitorClipboard(icon, originalText) {
+    // Define SVG icon - adjust size to 16px
+    const copySvg = `<svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 12.4316V7.8125C13 6.2592 14.2592 5 15.8125 5H40.1875C41.7408 5 43 6.2592 43 7.8125V32.1875C43 33.7408 41.7408 35 40.1875 35H35.5163" stroke="#a7a7a7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M32.1875 13H7.8125C6.2592 13 5 14.2592 5 15.8125V40.1875C5 41.7408 6.2592 43 7.8125 43H32.1875C33.7408 43 35 41.7408 35 40.1875V15.8125C35 14.2592 33.7408 13 32.1875 13Z" fill="none" stroke="#a7a7a7" stroke-width="4" stroke-linejoin="round"/></svg>`;
+    
+    // Create a polling interval to check if clipboard content changed
+    const checkInterval = setInterval(() => {
+      // Try to read clipboard (this may fail due to permissions)
+      navigator.clipboard.readText().then(clipText => {
+        if (clipText !== originalText) {
+          // Clipboard content changed, restore copy icon
+          icon.innerHTML = copySvg;
+          icon.classList.remove('copied');
+          clearInterval(checkInterval);
+        }
+      }).catch(() => {
+        // If we can't read clipboard, clear after a timeout
+        clearInterval(checkInterval);
+        setTimeout(() => {
+          icon.innerHTML = copySvg;
+          icon.classList.remove('copied');
+        }, 3000); // 3 seconds
+      });
+    }, 1000); // Check every second
+
+    // Fallback: clear copied state after a timeout (in case we can't read clipboard)
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      if (icon.classList.contains('copied')) {
+        icon.innerHTML = copySvg;
+        icon.classList.remove('copied');
+      }
+    }, 5000); // 5 seconds
   }
 
   /**
@@ -528,7 +929,7 @@
         tooltip.innerHTML = newContent;
         lastTooltipContent = newContent;
         
-        // Add font link click event after content update
+        // Add font link and copy button click events after content update
         const fontFamilyLinks = tooltip.querySelectorAll('.fontFamilyLink');
         fontFamilyLinks.forEach(link => {
           link.addEventListener('click', (event) => {
@@ -538,6 +939,12 @@
               fontFamily: link.getAttribute('data-font')
             });
           });
+        });
+        
+        // Add copy icon click event
+        const copyIcons = tooltip.querySelectorAll('.copy-icon');
+        copyIcons.forEach(icon => {
+          icon.addEventListener('click', handleCopyClick);
         });
       }
       tooltip.lastContentUpdate = now;
@@ -566,10 +973,20 @@
    */
   function handleKeyDown(event) {
     if (event.key === 'Escape' && isActive) {
+      // Hide floating tooltip
       hideTooltip(tooltip);
-      removeAllFixedTooltips();
+      
+      // Disable extension functionality but preserve fixed tooltips
       isActive = false;
+      
+      // Use new parameter call deinitializeDetector, preserve fixed tooltips
+      deinitializeDetector(true);
+      
+      // Notify background extension state changed
       chrome.runtime.sendMessage({ action: TOGGLE_ACTION });
+      
+      // Send message to background script to restore icon to default state
+      chrome.runtime.sendMessage({ action: 'updateIcon', iconState: 'inactive' });
     }
   }
 
@@ -594,21 +1011,45 @@
   function handleTextSelection(event) {
     if (!isActive) return;
     
-    const selection = window.getSelection();
-    if (selection.toString().trim().length > 0) {
-      // Get the element to extract font info from
-      let element = event.target;
-      if (element.nodeType === Node.TEXT_NODE) {
-        element = element.parentElement;
+    try {
+      // Debounce: cancel previous timeout
+      if (selectionTimeout) {
+        clearTimeout(selectionTimeout);
       }
       
-      // Only proceed if we have a valid element
-      if (element && element.nodeType === Node.ELEMENT_NODE) {
-        // Remove any existing fixed tooltips first
-        removeAllFixedTooltips();
-        
-        // Text is selected, create fixed tooltip
-        createFixedTooltip(event, element);
+      // Set new timeout, ensure tooltip created after selection completes
+      selectionTimeout = setTimeout(() => {
+        try {
+          const selection = window.getSelection();
+          if (selection && selection.toString().trim().length > 0) {
+            // Get the element to extract font info from
+            let element = event.target;
+            if (element.nodeType === Node.TEXT_NODE) {
+              element = element.parentElement;
+            }
+            
+            // Only proceed if we have a valid element
+            if (element && element.nodeType === Node.ELEMENT_NODE) {
+              // Remove all existing fixed tooltips
+              removeAllFixedTooltips();
+              
+              // Create new fixed tooltip
+              createFixedTooltip(event, element);
+            }
+          }
+        } catch (err) {
+          console.error('Error handling text selection:', err);
+          // Check if it's "Extension context invalidated" error
+          if (err.message && err.message.includes("Extension context invalidated")) {
+            cleanupResources();
+          }
+        }
+      }, 100); // 100ms delay, reduce multiple triggers
+    } catch (err) {
+      console.error('Error handling text selection:', err);
+      // Check if it's "Extension context invalidated" error
+      if (err.message && err.message.includes("Extension context invalidated")) {
+        cleanupResources();
       }
     }
   }
@@ -619,13 +1060,13 @@
    * @returns {boolean} - True if the element contains text
    */
   function hasTextContent(element) {
-    // 检查元素是否为空
+    // Check if element is empty
     if (!element) {
-      debug('元素为空', null);
+      debug('Element is empty', null);
       return false;
     }
     
-    // 扩展非文本标签列表 - 增加了更多不应显示工具提示的标签
+    // Extended non-text tag list - added more tags that should not display tooltips
     const nonTextTags = [
       'HTML', 'BODY', 'SCRIPT', 'STYLE', 'SVG', 'PATH', 'IMG', 'VIDEO', 'AUDIO', 'CANVAS', 'IFRAME', 
       'OBJECT', 'EMBED', 'NAV', 'UL', 'OL', 'HR', 'BR', 'WBR', 'NOSCRIPT', 'INPUT', 'SELECT', 'OPTION', 
@@ -635,44 +1076,44 @@
     ];
     
     if (nonTextTags.includes(element.tagName)) {
-      debug('非文本标签', element.tagName);
+      debug('Non-text tag', element.tagName);
       return false;
     }
     
-    // 获取元素的文本内容（删除空格）
+    // Get element text content (remove spaces)
     const rawText = element.textContent || '';
     const text = rawText.trim();
     
-    // 检查元素的计算样式
+    // Check element computed style
     const style = getComputedStyle(element);
     
-    // 检查是否是隐藏元素
+    // Check if element is hidden
     if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
-      debug('隐藏元素', element.tagName);
+      debug('Hidden element', element.tagName);
       return false;
     }
     
-    // 检查是否是空白元素（如只包含空格、换行等）
+    // Check if element is blank (e.g., only spaces, newlines, etc.)
     if (!/\S/.test(rawText)) {
-      debug('空白元素', element.tagName);
+      debug('Blank element', element.tagName);
       return false;
     }
     
-    // 检查元素的尺寸 - 增加最小尺寸要求
+    // Check element dimensions - increased minimum size requirement
     const rect = element.getBoundingClientRect();
     if (rect.width < 10 || rect.height < 10) {
-      debug('元素太小', `${element.tagName} ${rect.width}x${rect.height}`);
+      debug('Element too small', `${element.tagName} ${rect.width}x${rect.height}`);
       return false;
     }
     
-    // 检查是否在页面可见区域内
+    // Check if element is in visible area of page
     if (rect.top > window.innerHeight || rect.bottom < 0 || 
         rect.left > window.innerWidth || rect.right < 0) {
-      debug('元素在可视区域外', element.tagName);
+      debug('Element outside visible area', element.tagName);
       return false;
     }
     
-    // 检查直接文本子节点（不包括子元素中的文本）
+    // Check directly text child nodes (not including text in child elements)
     let hasDirectTextNode = false;
     let directTextLength = 0;
     
@@ -687,79 +1128,79 @@
       }
     }
     
-    // 更严格的文本长度要求
+    // More strict text length requirement
     if (text.length < 3) {
-      debug('文本太短', `${element.tagName}: ${text}`);
+      debug('Text too short', `${element.tagName}: ${text}`);
       return false;
     }
     
-    // 检查是否只包含特殊字符或标点符号
+    // Check if it only contains special characters or punctuation
     const punctuationOnlyPattern = /^[\s\.,;:!?()[\]{}'"\/\\-_+=<>|&$#@%^*]+$/;
     if (punctuationOnlyPattern.test(text)) {
-      debug('只包含特殊字符', `${element.tagName}: ${text}`);
+      debug('Contains only special characters', `${element.tagName}: ${text}`);
       return false;
     }
     
-    // 检查是否是有意义的文本内容
-    // 必须包含字母、数字或中文，并且长度至少为3个字符
+    // Check if it is meaningful text content
+    // Must contain letters, numbers, or Chinese, and at least 3 characters
     const meaningfulTextPattern = /[a-zA-Z0-9\u4e00-\u9fa5]{3,}/;
     if (!meaningfulTextPattern.test(text)) {
-      debug('没有包含有意义的文本', `${element.tagName}: ${text}`);
+      debug('Does not contain meaningful text', `${element.tagName}: ${text}`);
       return false;
     }
     
-    // 检查是否是明确的文本元素
+    // Check if it is a clear text element
     const textElements = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE'];
     if (textElements.includes(element.tagName) && directTextLength >= 3) {
-      debug('明确的文本元素', `${element.tagName}: ${directTextLength} 字符`);
+      debug('Clear text element', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
-    // 检查内联文本元素
+    // Check inline text elements
     const inlineTextElements = ['SPAN', 'A', 'STRONG', 'EM', 'B', 'I', 'U', 'SUP', 'SUB', 'MARK', 'SMALL', 'DEL', 'INS', 'Q', 'ABBR', 'CITE', 'DFN', 'LABEL'];
     if (inlineTextElements.includes(element.tagName) && directTextLength >= 3) {
-      debug('内联文本元素', `${element.tagName}: ${directTextLength} 字符`);
+      debug('Inline text element', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
-    // 检查表格单元格元素
+    // Check table cell elements
     if (['TD', 'TH'].includes(element.tagName) && directTextLength >= 3) {
-      debug('表格单元格文本', `${element.tagName}: ${directTextLength} 字符`);
+      debug('Table cell text', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
-    // 检查列表元素
+    // Check list elements
     if (['LI', 'DT', 'DD'].includes(element.tagName) && directTextLength >= 3) {
-      debug('列表元素文本', `${element.tagName}: ${directTextLength} 字符`);
+      debug('List element text', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
-    // 检查表单元素
+    // Check form elements
     if (['BUTTON', 'TEXTAREA'].includes(element.tagName) && directTextLength >= 3) {
-      debug('表单元素文本', `${element.tagName}: ${directTextLength} 字符`);
+      debug('Form element text', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
-    // 针对DIV元素的额外检查 - 更严格的要求
+    // Additional check for DIV elements - stricter requirements
     if (element.tagName === 'DIV') {
-      // 只有包含大量文本（至少20个字符）的DIV才能被接受
+      // Only accept DIVs with a lot of text (at least 20 characters)
       if (directTextLength >= 20) {
-        debug('文本丰富的DIV', `直接文本长度: ${directTextLength} 字符`);
+        debug('Text-rich DIV', `Direct text length: ${directTextLength} characters`);
         return true;
       }
       
-      // 检查DIV的样式，看它是否像一个文本容器
+      // Check DIV's style to see if it looks like a text container
       if (style.fontFamily !== 'inherit' && style.textAlign !== 'start' && directTextLength >= 5) {
-        debug('样式类似文本容器的DIV', `${element.tagName}: ${directTextLength} 字符`);
+        debug('Style similar to text container DIV', `${element.tagName}: ${directTextLength} characters`);
         return true;
       }
       
-      debug('普通DIV不满足文本要求', `直接文本长度: ${directTextLength} 字符`);
+      debug('Regular DIV does not meet text requirements', `Direct text length: ${directTextLength} characters`);
       return false;
     }
     
-    // 默认情况下，如果不满足以上任何条件，则认为不是文本元素
-    debug('不满足任何文本元素条件', element.tagName);
+    // By default, if it doesn't meet any of the above conditions, it's not considered a text element
+    debug('Does not meet any text element conditions', element.tagName);
     return false;
   }
 
@@ -772,63 +1213,63 @@
     
     let targetElement = event.target;
     
-    // 如果是文本节点，使用其父元素
+    // If it's a text node, use its parent element
     if (targetElement.nodeType === Node.TEXT_NODE) {
       targetElement = targetElement.parentElement;
     }
     
-    // 如果当前在窗口边缘或是空白区域，不显示工具提示
+    // If the cursor is at the edge of the window or in a blank area, don't display the tooltip
     const mouseX = event.clientX;
     const mouseY = event.clientY;
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
-    // 检查鼠标是否在窗口边缘
-    const edgeThreshold = 15; // 边缘阈值（像素）
+    // Check if the mouse is at the edge of the window
+    const edgeThreshold = 15; // Edge threshold (pixels)
     if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
         mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
       if (currentTarget) {
-        debug('鼠标在窗口边缘', `${mouseX},${mouseY}`);
+        debug('Mouse at window edge', `${mouseX},${mouseY}`);
         currentTarget = null;
         hideTooltip(tooltip);
       }
       return;
     }
     
-    // 检查目标元素是否是文档的根元素或正文元素（可能是空白区域）
+    // Check if the target element is the root or body element of the document (possibly a blank area)
     if (targetElement === document.documentElement || targetElement === document.body) {
       if (currentTarget) {
-        debug('鼠标在根元素上', targetElement.tagName);
+        debug('Mouse over root element', targetElement.tagName);
         currentTarget = null;
         hideTooltip(tooltip);
       }
       return;
     }
     
-    // 检查是否是空白区域（例如大的容器元素的空白部分）
+    // Check if it's a blank area (e.g., blank part of a large container element)
     const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
     if (elementUnderPoint !== targetElement && 
         (elementUnderPoint === document.documentElement || elementUnderPoint === document.body)) {
       if (currentTarget) {
-        debug('鼠标在空白区域', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
+        debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
         currentTarget = null;
         hideTooltip(tooltip);
       }
       return;
     }
     
-    // 只处理包含文本的元素节点
+    // Only process element nodes containing text
     if (targetElement && targetElement.nodeType === Node.ELEMENT_NODE && hasTextContent(targetElement)) {
-      debug('鼠标悬停在文本元素上', targetElement.tagName);
+      debug('Mouse hovering over text element', targetElement.tagName);
       currentTarget = targetElement;
       
-      // 使用 requestAnimationFrame 确保平滑显示
+      // Use requestAnimationFrame to ensure smooth display
       requestUpdate(() => {
         showTooltip(event, tooltip);
       });
     } else {
-      // 不是文本元素，隐藏 tooltip
-      debug('鼠标悬停在非文本元素上', targetElement?.tagName);
+      // Not a text element, hide tooltip
+      debug('Mouse hovering over non-text element', targetElement?.tagName);
       currentTarget = null;
       hideTooltip(tooltip);
     }
@@ -841,17 +1282,17 @@
   function handleMouseOut(event) {
     if (!isActive) return;
     
-    // 检查是否真的离开了元素（不是移入子元素）
+    // Check if really leaving the element (not entering a child element)
     let relatedTarget = event.relatedTarget;
     while (relatedTarget) {
       if (relatedTarget === event.target) {
-        // 如果相关目标是当前目标的子元素，不做任何操作
+        // If the related target is a child of the current target, do nothing
         return;
       }
       relatedTarget = relatedTarget.parentElement;
     }
     
-    // 真正离开了元素
+    // Really left the element
     currentTarget = null;
     hideTooltip(tooltip);
   }
@@ -865,66 +1306,66 @@
     
     let targetElement = event.target;
     
-    // 如果是文本节点，使用其父元素
+    // If it's a text node, use its parent element
     if (targetElement.nodeType === Node.TEXT_NODE) {
       targetElement = targetElement.parentElement;
     }
     
-    // 如果当前在窗口边缘或是空白区域，隐藏工具提示
+    // If the cursor is at the edge of the window or in a blank area, hide the tooltip
     const mouseX = event.clientX;
     const mouseY = event.clientY;
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
-    // 检查鼠标是否在窗口边缘
-    const edgeThreshold = 15; // 边缘阈值（像素）
+    // Check if the mouse is at the edge of the window
+    const edgeThreshold = 15; // Edge threshold (pixels)
     if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
         mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
       if (currentTarget) {
-        debug('鼠标在窗口边缘', `${mouseX},${mouseY}`);
+        debug('Mouse at window edge', `${mouseX},${mouseY}`);
         currentTarget = null;
         hideTooltip(tooltip);
       }
       return;
     }
     
-    // 检查目标元素是否是文档的根元素或正文元素（可能是空白区域）
+    // Check if the target element is the root or body element of the document (possibly a blank area)
     if (targetElement === document.documentElement || targetElement === document.body) {
       if (currentTarget) {
-        debug('鼠标在根元素上', targetElement.tagName);
+        debug('Mouse over root element', targetElement.tagName);
         currentTarget = null;
         hideTooltip(tooltip);
       }
       return;
     }
     
-    // 检查是否是空白区域（例如大的容器元素的空白部分）
+    // Check if it's a blank area (e.g., blank part of a large container element)
     const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
     if (elementUnderPoint !== targetElement && 
         (elementUnderPoint === document.documentElement || elementUnderPoint === document.body)) {
       if (currentTarget) {
-        debug('鼠标在空白区域', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
+        debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
         currentTarget = null;
         hideTooltip(tooltip);
       }
       return;
     }
     
-    // 确保有有效元素且包含文本
+    // Ensure there is a valid element and it contains text
     if (targetElement && targetElement.nodeType === Node.ELEMENT_NODE && hasTextContent(targetElement)) {
-      // 更新当前目标
+      // Update current target
       if (currentTarget !== targetElement) {
-        debug('设置新目标元素', targetElement.tagName);
+        debug('Set new target element', targetElement.tagName);
         currentTarget = targetElement;
       }
       
-      // 使用 requestAnimationFrame 确保平滑动画
+      // Use requestAnimationFrame to ensure smooth animation
       requestUpdate(() => {
       showTooltip(event, tooltip);
       });
     } else if (currentTarget) {
-      // 如果不在文本上且之前有目标，则隐藏 tooltip
-      debug('鼠标不在文本上', targetElement.tagName);
+      // If not on text and there was a target, hide tooltip
+      debug('Mouse not on text', targetElement.tagName);
       currentTarget = null;
       hideTooltip(tooltip);
     }
@@ -949,17 +1390,41 @@
   }
 
   // Set up message listener for extension communication
+  try {
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      try {
     if (request.action === TOGGLE_ACTION) {
       toggleExtension();
       sendResponse({ success: true });
     } else if (request.action === 'checkContentScriptLoaded') {
       sendResponse({ loaded: true });
+        } else if (request.action === 'checkExtensionStatus') {
+          // Return the current activation state of the extension
+          sendResponse({ isActive: isActive });
+        }
+      } catch (err) {
+        console.error('Error in message handler:', err);
+        // Check if extension context is invalidated
+        if (err.message && err.message.includes("Extension context invalidated")) {
+          console.warn('Extension context was invalidated in message handler');
+          cleanupResources();
+        }
+        try {
+          sendResponse({ success: false, error: err.message });
+        } catch (responseErr) {
+          console.error('Error sending response:', responseErr);
+        }
+      }
+      return true; // Keep message channel open
+    });
+  } catch (err) {
+    console.error('Setting message listener failed:', err);
+    if (err.message && err.message.includes("Extension context invalidated")) {
+      cleanupResources();
     }
-    return true; // Keep message channel open
-  });
+  }
 
-  // 添加调试助手到全局，方便在控制台开启
+  // Add debug helper to global, convenient for turning on in console
   window.fontDetectorDebug = false;
   window.toggleFontDetectorDebug = function() {
     window.fontDetectorDebug = !window.fontDetectorDebug;

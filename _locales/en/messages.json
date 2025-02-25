@@ -1,0 +1,62 @@
+{
+  "appName": {
+    "message": "FontDetector",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "Display font information on hover over text elements.",
+    "description": "The description of the extension"
+  },
+  "fontFamily": {
+    "message": "Font Family",
+    "description": "Label for font family"
+  },
+  "fontWeight": {
+    "message": "Font Weight",
+    "description": "Label for font weight"
+  },
+  "fontSize": {
+    "message": "Font Size",
+    "description": "Label for font size"
+  },
+  "lineHeight": {
+    "message": "Line Height",
+    "description": "Label for line height"
+  },
+  "letterSpacing": {
+    "message": "Letter Spacing",
+    "description": "Label for letter spacing"
+  },
+  "textAlign": {
+    "message": "Text Align",
+    "description": "Label for text alignment"
+  },
+  "color": {
+    "message": "Color",
+    "description": "Label for color"
+  },
+  "colorHex": {
+    "message": "HEX",
+    "description": "Label for HEX color format"
+  },
+  "colorLCH": {
+    "message": "LCH",
+    "description": "Label for LCH color format"
+  },
+  "colorHCL": {
+    "message": "HCL",
+    "description": "Label for HCL color format"
+  },
+  "copied": {
+    "message": "Copied",
+    "description": "Text shown after copying"
+  },
+  "noFontFound": {
+    "message": "No font information available",
+    "description": "Message when no font information is found"
+  },
+  "clickToCopy": {
+    "message": "Click to copy",
+    "description": "Tooltip for copy button"
+  }
+} 

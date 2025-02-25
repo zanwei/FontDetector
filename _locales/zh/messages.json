@@ -1,0 +1,62 @@
+{
+  "appName": {
+    "message": "字体检测器",
+    "description": "扩展程序名称"
+  },
+  "appDesc": {
+    "message": "悬停在文本元素上显示字体信息。",
+    "description": "扩展程序描述"
+  },
+  "fontFamily": {
+    "message": "字体系列",
+    "description": "字体系列标签"
+  },
+  "fontWeight": {
+    "message": "字体粗细",
+    "description": "字体粗细标签"
+  },
+  "fontSize": {
+    "message": "字体大小",
+    "description": "字体大小标签"
+  },
+  "lineHeight": {
+    "message": "行高",
+    "description": "行高标签"
+  },
+  "letterSpacing": {
+    "message": "字间距",
+    "description": "字间距标签"
+  },
+  "textAlign": {
+    "message": "文本对齐",
+    "description": "文本对齐标签"
+  },
+  "color": {
+    "message": "颜色",
+    "description": "颜色标签"
+  },
+  "colorHex": {
+    "message": "十六进制",
+    "description": "十六进制颜色格式标签"
+  },
+  "colorLCH": {
+    "message": "LCH",
+    "description": "LCH颜色格式标签"
+  },
+  "colorHCL": {
+    "message": "HCL",
+    "description": "HCL颜色格式标签"
+  },
+  "copied": {
+    "message": "已复制",
+    "description": "复制后显示的文本"
+  },
+  "noFontFound": {
+    "message": "没有可用的字体信息",
+    "description": "未找到字体信息时的消息"
+  },
+  "clickToCopy": {
+    "message": "点击复制",
+    "description": "复制按钮的提示"
+  }
+} 

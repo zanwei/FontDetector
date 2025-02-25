@@ -1,36 +1,79 @@
-<img src="https://github.com/zanwei/FontDetector/blob/1ae48641f2638daed31582ffd5b05c3fab949f2f/thumbnail.png" alt="" style="max-width: 100%; height: auto;">
+# FontDetector Browser Extension
 
-# FontDetector
+FontDetector is a powerful browser extension that helps designers, developers, and users quickly identify fonts and color information on web pages. With a simple mouse hover, you can instantly get font names, sizes, colors, and other style attributes of text elements.
 
-`FontDetector` simplifies the tedious process of determining fonts as you browse the web. No more switching between windows or searching through lines of code. Just hover over a font you like, and within three seconds you'll have the font name, saving a ton of time!
+![FontDetector Preview](thumbnail.png)
 
-`Hover`, `detect`. As easy as 1-2. An essential tool for any web designer or front-end developer.
+## ✨ Key Features
 
-# Features
+- 🔍 **Real-time Detection**: Hover over any text element to view font information
+- 📌 **Fixed Tooltips**: Create fixed information tooltips by selecting text for comparing different elements
+- 🎨 **Color Information**: Display text colors in HEX, LCH, and HCL formats
+- 📋 **One-click Copy**: Easily copy font information and color values
+- 🔎 **Font Search**: Search for detected fonts directly to learn more
+- ⌨️ **Keyboard Shortcuts**: Use ESC key to quickly close floating tooltips while preserving fixed ones
 
-- Displays font information: `font family`, `font weight`, `font size`, `letter spacing`, `line height`, and `text alignment`
-- Detects text colors in multiple formats: `HEX`, `LCH`, and `HCL`
-- Creates fixed tooltips when you select text, allowing you to compare multiple elements
-- Features a clean, minimal interface with a modern blur effect
+## 📦 Installation
 
-# Basic Usage 
+### Chrome Web Store Installation
+1. Visit the [FontDetector page on Chrome Web Store](https://chrome.google.com/webstore/detail/fontdetector/ahfkcmiegcgnpchecjedjkeglnmlobef)
+2. Click "Add to Chrome" button
 
-1. Press `Shift + Alt + X` (default for both Windows and Mac) to activate FontDetector
-2. Hover over any text to instantly see its font properties and color information
-3. Select text to create a fixed tooltip that stays in place for comparison
-4. Click the close button on fixed tooltips to remove them
-5. Press `ESC` to deactivate FontDetector
+### Manual Installation (Development Version)
+1. Download or clone this repository locally
+2. Open Chrome browser and navigate to the extensions management page (`chrome://extensions/`)
+3. Enable "Developer Mode" (toggle button in top right)
+4. Click "Load unpacked extension" button
+5. Select the root directory of this repository
 
-# Chrome Web Store
+## 🚀 How to Use
 
-⏬ <a href="https://chrome.google.com/webstore/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe" target="_blank">Download here</a>
+### Basic Usage
+1. Click the FontDetector icon in the toolbar to activate the extension (icon turns blue to indicate activation)
+2. Hover your mouse over any text element on the webpage to view its font information
+3. Click the extension icon again or press ESC key to deactivate the extension
 
-## About Me
+### Creating Fixed Tooltips
+1. With the extension active, select a piece of text
+2. After selection, a fixed information tooltip will be automatically created
+3. Repeat this operation to create multiple fixed tooltips for comparison
+4. Click the close button in the top-right corner of a tooltip to close it
 
-<a href="https://twitter.com/zanweiguo" target="_blank">Twitter ↗︎</a>
-<br>
-<a href="https://www.instagram.com/zanwei.guo/" target="_blank">Instagram ↗︎</a>
+### Copying Information
+- Click the copy icon in the tooltip to copy the corresponding value to clipboard
+- A blue checkmark icon indicates successful copying
 
-# License
+### Searching Fonts
+- Click on the font name to search for information about that font in a new tab
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 🛠️ Technical Details
+
+FontDetector is written in pure JavaScript with no external dependencies. It can detect and display the following information:
+
+- Font Family
+- Font Weight
+- Font Size
+- Letter Spacing
+- Line Height
+- Text Alignment
+- Text Color (multiple formats)
+
+## 🤝 Contributing
+
+We welcome all forms of contribution! Please check [CONTRIBUTING.md](CONTRIBUTING.md) to learn how to participate.
+
+## 📝 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## 📧 Contact
+
+If you have questions or suggestions, please submit an issue or contact us through:
+
+- Email: fontdetector.extension@gmail.com
+- Twitter: [@FontDetectorExt](https://twitter.com/FontDetectorExt)
+- GitHub Issues: [Report a bug or request a feature](https://github.com/FontDetector/FontDetector/issues)
+
+---
+
+**FontDetector** - Making web font identification simple and efficient!
