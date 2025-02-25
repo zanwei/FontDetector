@@ -30,3 +30,7 @@
 <a href="https://twitter.com/zanweiguo" target="_blank">Twitter ↗︎</a>
 <br>
 <a href="https://www.instagram.com/zanwei.guo/" target="_blank">Instagram ↗︎</a>
+
+# License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
