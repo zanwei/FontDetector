@@ -1,4 +1,3 @@
-
 <img src="https://github.com/zanwei/FontDetector/blob/1ae48641f2638daed31582ffd5b05c3fab949f2f/thumbnail.png" alt="" style="max-width: 100%; height: auto;">
 
 # FontDetector
@@ -7,15 +6,20 @@
 
 `Hover`, `detect`. As easy as 1-2. An essential tool for any web designer or front-end developer.
 
+# Features
+
+- Displays font information: `font family`, `font weight`, `font size`, `letter spacing`, `line height`, and `text alignment`
+- Detects text colors in multiple formats: `HEX`, `LCH`, and `HCL`
+- Creates fixed tooltips when you select text, allowing you to compare multiple elements
+- Features a clean, minimal interface with a modern blur effect
+
 # Basic Usage 
 
-You can view your favorite fonts through it
-`font family`, `font weight`, `font size`, `letter spacing`, `line height`, and `text alignment`
-
-Using `default: Shift + Alt + X` `mac: Shift + Alt + X` to run `FontDetector` in the browser
-<br>  
-
-Click `ESC` to close `FontDetector` in the browser
+1. Press `Shift + Alt + X` (default for both Windows and Mac) to activate FontDetector
+2. Hover over any text to instantly see its font properties and color information
+3. Select text to create a fixed tooltip that stays in place for comparison
+4. Click the close button on fixed tooltips to remove them
+5. Press `ESC` to deactivate FontDetector
 
 # Chrome Web Store
 

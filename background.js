@@ -1,44 +1,56 @@
 const TOGGLE_ACTION = 'toggleExtension';
 const TOGGLE_COMMAND = 'toggle_font_detector';
 
+/**
+ * Listens for clicks on the extension icon
+ * Toggles the extension on compatible pages
+ */
 chrome.action.onClicked.addListener((tab) => {
   if (tab.url.startsWith('http://') || tab.url.startsWith('https://')) {
     toggleExtension(tab);
   } else {
-    console.error('扩展不能在此页面上运行');
+    console.error('Extension cannot run on this page (non-HTTP/HTTPS URL)');
   }
 });
 
+/**
+ * Toggles the extension state on the specified tab
+ * @param {Object} tab - The tab where the extension should be toggled
+ */
 async function toggleExtension(tab) {
   if (!tab || !tab.id) {
-    console.error('无效的标签页');
+    console.error('Invalid tab: Cannot toggle extension on undefined tab');
     return;
   }
 
   try {
-    // 注入内容脚本
+    // Inject content script
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['contentScript.js']
     });
 
-    // 添加延迟
+    // Add delay to ensure script is properly loaded
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 发送消息
+    // Send message to content script
     chrome.tabs.sendMessage(tab.id, { action: TOGGLE_ACTION }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error('发送消息时出错:', chrome.runtime.lastError.message);
+        console.error('Error sending message:', chrome.runtime.lastError.message);
       } else {
-        console.log('消息发送成功', response);
+        console.log('Message sent successfully', response);
       }
     });
   } catch (error) {
-    console.error('执行脚本或发送消息时发生异常:', error.message);
+    console.error('Exception while executing script or sending message:', error.message);
   }
 }
 
-// 检查内容脚本是否已加载
+/**
+ * Checks if the content script is loaded in the specified tab
+ * @param {number} tabId - The ID of the tab to check
+ * @returns {Promise<boolean>} - Whether the content script is loaded
+ */
 async function checkContentScriptLoaded(tabId) {
   try {
     const response = await new Promise((resolve) => {
@@ -52,11 +64,15 @@ async function checkContentScriptLoaded(tabId) {
     });
     return response.loaded === true;
   } catch (error) {
-    console.error('检查内容脚本加载状态时出错:', error);
+    console.error('Error checking content script loading status:', error);
     return false;
   }
 }
 
+/**
+ * Listens for keyboard shortcuts
+ * Activates the extension when the toggle command is triggered
+ */
 chrome.commands.onCommand.addListener((command) => {
   if (command === TOGGLE_COMMAND) {
     chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
@@ -65,11 +81,15 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
+/**
+ * Listens for tab updates
+ * Ensures the content script is loaded when a tab is updated
+ */
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url.indexOf('http') === 0) {
     checkContentScriptLoaded(tabId).then(isLoaded => {
       if (!isLoaded) {
-        console.log('标签页更新后内容脚本未加载，正在注入...');
+        console.log('Content script not loaded after tab update, injecting now...');
         chrome.scripting.executeScript({
           target: { tabId: tabId },
           files: ['contentScript.js']
@@ -79,7 +99,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-// 监听来自内容脚本的消息
+/**
+ * Listens for messages from content script
+ * Handles search requests and deactivation notifications
+ */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'searchFontFamily') {
     const fontFamily = request.fontFamily;
@@ -88,8 +111,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const url = `https://www.google.com/search?q=${encodeURIComponent(formattedFontFamily + ' font')}`;
     chrome.tabs.create({ url });
   } else if (request.action === 'deactivateExtension') {
-    // 如果需要在后台响应停用扩展的请求
-    console.log('收到扩展停用请求');
-    // 可以在这里执行其他相关操作
+    // Handle extension deactivation request from content script
+    console.log('Received extension deactivation request');
   }
 });
