@@ -66,6 +66,6 @@ We welcome all forms of contribution! Please check [CONTRIBUTING.md](CONTRIBUTIN
 
 This project is licensed under the [MIT License](LICENSE).
 
----
+## Download
 
 [Download FontDetector](https://chromewebstore.google.com/detail/fontdetector/jphgedmdokkhlllaibcbndaccmdcckfe)
