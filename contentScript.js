@@ -281,37 +281,126 @@
    */
   function getColorFromElement(element) {
     try {
-      const style = getComputedStyle(element);
+      // 检查element是否为null或undefined
+      if (!element) {
+        return null;
+      }
+      
+      // 安全获取计算样式
+      let style;
+      try {
+        style = getComputedStyle(element);
+      } catch (err) {
+        console.warn('Error getting computed style:', err);
+        return null;
+      }
+      
       const color = style.color;
       
-      // Create a temporary element to parse any color format
-      const tempEl = document.createElement('div');
-      tempEl.style.color = color;
-      tempEl.style.display = 'none';
-      document.body.appendChild(tempEl);
-      
-      // Get the computed color value (browser will convert various formats to rgb or rgba)
-      const computedColor = getComputedStyle(tempEl).color;
-      document.body.removeChild(tempEl);
-      
-      // Parse RGB or RGBA color
-      const rgbMatch = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (rgbMatch) {
-        const r = parseInt(rgbMatch[1]);
-        const g = parseInt(rgbMatch[2]);
-        const b = parseInt(rgbMatch[3]);
+      // 安全创建和添加临时元素
+      try {
+        // 创建一个临时元素来解析颜色格式
+        const tempEl = document.createElement('div');
+        tempEl.style.color = color;
+        tempEl.style.display = 'none';
         
-        // Convert to different formats
-        const hex = rgbToHex(r, g, b);
-        const lch = rgbToLCH(r, g, b);
-        const hcl = rgbToHCL(r, g, b);
+        // 检查document.body是否存在
+        if (!document.body) {
+          // 如果没有body，尝试使用documentElement
+          if (document.documentElement) {
+            document.documentElement.appendChild(tempEl);
+          } else {
+            // 如果documentElement也不存在，无法继续解析颜色
+            console.warn('Cannot append temporary element: no body or documentElement');
+            return null;
+          }
+        } else {
+          document.body.appendChild(tempEl);
+        }
         
-        return {
-          hex,
-          lch: `L: ${lch.l}, C: ${lch.c}, H: ${lch.h}`,
-          hcl: `H: ${hcl.h}, C: ${hcl.c}, L: ${hcl.l}`,
-          rgbValue: [r, g, b]
-        };
+        // 获取计算的颜色值（浏览器会将各种格式转换为rgb或rgba）
+        const computedColor = getComputedStyle(tempEl).color;
+        
+        // 安全移除临时元素
+        if (tempEl.parentNode) {
+          tempEl.parentNode.removeChild(tempEl);
+        }
+        
+        // 解析RGB或RGBA颜色
+        const rgbMatch = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (rgbMatch) {
+          const r = parseInt(rgbMatch[1]);
+          const g = parseInt(rgbMatch[2]);
+          const b = parseInt(rgbMatch[3]);
+          
+          // 转换为不同格式
+          const hex = rgbToHex(r, g, b);
+          const lch = rgbToLCH(r, g, b);
+          const hcl = rgbToHCL(r, g, b);
+          
+          return {
+            hex,
+            lch: `L: ${lch.l}, C: ${lch.c}, H: ${lch.h}`,
+            hcl: `H: ${hcl.h}, C: ${hcl.c}, L: ${hcl.l}`,
+            rgbValue: [r, g, b]
+          };
+        }
+      } catch (e) {
+        console.error('Error creating temporary element for color parsing:', e);
+        
+        // 备用方法：尝试直接解析颜色而不使用临时元素
+        try {
+          // 如果颜色已经是RGB格式，尝试直接解析
+          const directRgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (directRgbMatch) {
+            const r = parseInt(directRgbMatch[1]);
+            const g = parseInt(directRgbMatch[2]);
+            const b = parseInt(directRgbMatch[3]);
+            
+            const hex = rgbToHex(r, g, b);
+            const lch = rgbToLCH(r, g, b);
+            const hcl = rgbToHCL(r, g, b);
+            
+            return {
+              hex,
+              lch: `L: ${lch.l}, C: ${lch.c}, H: ${lch.h}`,
+              hcl: `H: ${hcl.h}, C: ${hcl.c}, L: ${hcl.l}`,
+              rgbValue: [r, g, b]
+            };
+          }
+          
+          // 如果是十六进制颜色，尝试直接解析
+          if (color.startsWith('#')) {
+            // 简单的十六进制颜色解析
+            const hex = color.trim();
+            // 将十六进制转换为RGB
+            let r, g, b;
+            
+            if (hex.length === 4) { // #RGB格式
+              r = parseInt(hex[1] + hex[1], 16);
+              g = parseInt(hex[2] + hex[2], 16);
+              b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length === 7) { // #RRGGBB格式
+              r = parseInt(hex.substring(1, 3), 16);
+              g = parseInt(hex.substring(3, 5), 16);
+              b = parseInt(hex.substring(5, 7), 16);
+            }
+            
+            if (!isNaN(r) && !isNaN(g) && !isNaN(b)) {
+              const lch = rgbToLCH(r, g, b);
+              const hcl = rgbToHCL(r, g, b);
+              
+              return {
+                hex,
+                lch: `L: ${lch.l}, C: ${lch.c}, H: ${lch.h}`,
+                hcl: `H: ${hcl.h}, C: ${hcl.c}, L: ${hcl.l}`,
+                rgbValue: [r, g, b]
+              };
+            }
+          }
+        } catch (backupErr) {
+          console.error('Error in backup color parsing:', backupErr);
+        }
       }
     } catch (e) {
       console.error('Error parsing color:', e);
@@ -1347,167 +1436,189 @@
    * @returns {boolean} - True if the element contains text
    */
   function hasTextContent(element) {
-    // Check if element is empty
-    if (!element) {
-      debug('Element is empty', null);
-      return false;
-    }
-    
-    // Extended non-text tag list - added more tags that should not display tooltips
-    const nonTextTags = [
-      'HTML', 'BODY', 'SCRIPT', 'STYLE', 'SVG', 'PATH', 'IMG', 'VIDEO', 'AUDIO', 'CANVAS', 'IFRAME', 
-      'OBJECT', 'EMBED', 'NAV', 'UL', 'OL', 'HR', 'BR', 'WBR', 'NOSCRIPT', 'INPUT', 'SELECT', 'OPTION', 
-      'OPTGROUP', 'DATALIST', 'OUTPUT', 'MENU', 'ASIDE', 'FIGURE', 'FIGCAPTION', 'MAP', 'AREA', 
-      'SOURCE', 'TRACK', 'META', 'LINK', 'BASE', 'PARAM', 'PROGRESS', 'METER', 'TIME', 'HEADER', 
-      'FOOTER', 'MAIN', 'SECTION', 'ARTICLE', 'DIALOG', 'DETAILS', 'SUMMARY', 'PICTURE', 'TEMPLATE'
-    ];
-    
-    if (nonTextTags.includes(element.tagName)) {
-      debug('Non-text tag', element.tagName);
-      return false;
-    }
-    
-    // Get element text content (remove spaces)
-    const rawText = element.textContent || '';
-    const text = rawText.trim();
-    
-    // Check element computed style
-    const style = getComputedStyle(element);
-    
-    // Check if element is hidden
-    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
-      debug('Hidden element', element.tagName);
-      return false;
-    }
-    
-    // Check if element is blank (e.g., only spaces, newlines, etc.)
-    if (!/\S/.test(rawText)) {
-      debug('Blank element', element.tagName);
-      return false;
-    }
-    
-    // 通用性放宽：减小尺寸要求 - 对所有网站都更宽松
-    const rect = element.getBoundingClientRect();
-    if (rect.width < 5 || rect.height < 5) {
-      debug('Element too small', `${element.tagName} ${rect.width}x${rect.height}`);
-      return false;
-    }
-    
-    // Check if element is in visible area of page
-    if (rect.top > window.innerHeight || rect.bottom < 0 || 
-        rect.left > window.innerWidth || rect.right < 0) {
-      debug('Element outside visible area', element.tagName);
-      return false;
-    }
-    
-    // Check directly text child nodes (not including text in child elements)
-    let hasDirectTextNode = false;
-    let directTextLength = 0;
-    
-    for (let i = 0; i < element.childNodes.length; i++) {
-      const node = element.childNodes[i];
-      if (node.nodeType === Node.TEXT_NODE) {
-        const nodeText = node.textContent.trim();
-        if (nodeText.length > 0) {
-          hasDirectTextNode = true;
-          directTextLength += nodeText.length;
+    try {
+      // Check if element is empty
+      if (!element) {
+        debug('Element is empty', null);
+        return false;
+      }
+      
+      // Extended non-text tag list - added more tags that should not display tooltips
+      const nonTextTags = [
+        'HTML', 'BODY', 'SCRIPT', 'STYLE', 'SVG', 'PATH', 'IMG', 'VIDEO', 'AUDIO', 'CANVAS', 'IFRAME', 
+        'OBJECT', 'EMBED', 'NAV', 'UL', 'OL', 'HR', 'BR', 'WBR', 'NOSCRIPT', 'INPUT', 'SELECT', 'OPTION', 
+        'OPTGROUP', 'DATALIST', 'OUTPUT', 'MENU', 'ASIDE', 'FIGURE', 'FIGCAPTION', 'MAP', 'AREA', 
+        'SOURCE', 'TRACK', 'META', 'LINK', 'BASE', 'PARAM', 'PROGRESS', 'METER', 'TIME', 'HEADER', 
+        'FOOTER', 'MAIN', 'SECTION', 'ARTICLE', 'DIALOG', 'DETAILS', 'SUMMARY', 'PICTURE', 'TEMPLATE'
+      ];
+      
+      if (nonTextTags.includes(element.tagName)) {
+        debug('Non-text tag', element.tagName);
+        return false;
+      }
+      
+      // Get element text content (remove spaces)
+      const rawText = element.textContent || '';
+      const text = rawText.trim();
+      
+      // 安全地获取计算样式，防止null对象
+      let style;
+      try {
+        style = getComputedStyle(element);
+      } catch (err) {
+        console.warn('Error getting computed style:', err);
+        return false;
+      }
+      
+      // Check if element is hidden
+      if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
+        debug('Hidden element', element.tagName);
+        return false;
+      }
+      
+      // Check if element is blank (e.g., only spaces, newlines, etc.)
+      if (!/\S/.test(rawText)) {
+        debug('Blank element', element.tagName);
+        return false;
+      }
+      
+      // 安全获取元素位置和尺寸
+      let rect;
+      try {
+        rect = element.getBoundingClientRect();
+      } catch (err) {
+        console.warn('Error getting element rect:', err);
+        return false;
+      }
+      
+      // 通用性放宽：减小尺寸要求 - 对所有网站都更宽松
+      if (rect.width < 5 || rect.height < 5) {
+        debug('Element too small', `${element.tagName} ${rect.width}x${rect.height}`);
+        return false;
+      }
+      
+      // Check if element is in visible area of page
+      if (rect.top > window.innerHeight || rect.bottom < 0 || 
+          rect.left > window.innerWidth || rect.right < 0) {
+        debug('Element outside visible area', element.tagName);
+        return false;
+      }
+      
+      // Check directly text child nodes (not including text in child elements)
+      let hasDirectTextNode = false;
+      let directTextLength = 0;
+      
+      // 安全检查childNodes
+      if (element.childNodes) {
+        for (let i = 0; i < element.childNodes.length; i++) {
+          const node = element.childNodes[i];
+          if (node && node.nodeType === Node.TEXT_NODE) {
+            const nodeText = node.textContent ? node.textContent.trim() : '';
+            if (nodeText.length > 0) {
+              hasDirectTextNode = true;
+              directTextLength += nodeText.length;
+            }
+          }
         }
       }
-    }
-    
-    // 通用性放宽：减少文本长度要求
-    if (text.length < 2) {
-      debug('Text too short', `${element.tagName}: ${text}`);
-      return false;
-    }
-    
-    // Check if it only contains special characters or punctuation
-    const punctuationOnlyPattern = /^[\s\.,;:!?()[\]{}'"\/\\-_+=<>|&$#@%^*]+$/;
-    if (punctuationOnlyPattern.test(text)) {
-      debug('Contains only special characters', `${element.tagName}: ${text}`);
-      return false;
-    }
-    
-    // 通用性放宽：降低有意义文本的要求
-    const meaningfulTextPattern = /[a-zA-Z0-9\u4e00-\u9fa5]{2,}/;
-    if (!meaningfulTextPattern.test(text)) {
-      debug('Does not contain meaningful text', `${element.tagName}: ${text}`);
-      return false;
-    }
-    
-    // 通用性增强：检查元素是否有样式，不再限于特定网站
-    if (element.classList.length > 0 || 
-        style.fontFamily !== 'inherit' || 
-        style.fontSize !== 'inherit' ||
-        style.color !== 'inherit' ||
-        style.textAlign !== 'inherit') {
-      // 如果元素有自定义样式，更可能是有意义的文本内容
-      // 但仍需确保至少有一些文本内容
-      if (directTextLength > 0 || text.length >= 2) {
-        debug('Element with styling', `${element.tagName}`);
-        return true;
+      
+      // 通用性放宽：减少文本长度要求
+      if (text.length < 2) {
+        debug('Text too short', `${element.tagName}: ${text}`);
+        return false;
       }
-    }
-    
-    // Check if it is a clear text element
-    const textElements = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE'];
-    if (textElements.includes(element.tagName) && directTextLength >= 2) {
-      debug('Clear text element', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check inline text elements
-    const inlineTextElements = ['SPAN', 'A', 'STRONG', 'EM', 'B', 'I', 'U', 'SUP', 'SUB', 'MARK', 'SMALL', 'DEL', 'INS', 'Q', 'ABBR', 'CITE', 'DFN', 'LABEL'];
-    if (inlineTextElements.includes(element.tagName) && directTextLength >= 2) {
-      debug('Inline text element', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check table cell elements
-    if (['TD', 'TH'].includes(element.tagName) && directTextLength >= 2) {
-      debug('Table cell text', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check list elements
-    if (['LI', 'DT', 'DD'].includes(element.tagName) && directTextLength >= 2) {
-      debug('List element text', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check form elements
-    if (['BUTTON', 'TEXTAREA'].includes(element.tagName) && directTextLength >= 2) {
-      debug('Form element text', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // 通用性优化：降低对DIV元素的要求
-    if (element.tagName === 'DIV') {
-      // 降低DIV文本长度要求
-      if (directTextLength >= 5) {
-        debug('Text-rich DIV', `Direct text length: ${directTextLength} characters`);
+      
+      // Check if it only contains special characters or punctuation
+      const punctuationOnlyPattern = /^[\s\.,;:!?()[\]{}'"\/\\-_+=<>|&$#@%^*]+$/;
+      if (punctuationOnlyPattern.test(text)) {
+        debug('Contains only special characters', `${element.tagName}: ${text}`);
+        return false;
+      }
+      
+      // 通用性放宽：降低有意义文本的要求
+      const meaningfulTextPattern = /[a-zA-Z0-9\u4e00-\u9fa5]{2,}/;
+      if (!meaningfulTextPattern.test(text)) {
+        debug('Does not contain meaningful text', `${element.tagName}: ${text}`);
+        return false;
+      }
+      
+      // 通用性增强：检查元素是否有样式，不再限于特定网站
+      if (element.classList && element.classList.length > 0 || 
+          style.fontFamily !== 'inherit' || 
+          style.fontSize !== 'inherit' ||
+          style.color !== 'inherit' ||
+          style.textAlign !== 'inherit') {
+        // 如果元素有自定义样式，更可能是有意义的文本内容
+        // 但仍需确保至少有一些文本内容
+        if (directTextLength > 0 || text.length >= 2) {
+          debug('Element with styling', `${element.tagName}`);
+          return true;
+        }
+      }
+      
+      // Check if it is a clear text element
+      const textElements = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE'];
+      if (textElements.includes(element.tagName) && directTextLength >= 2) {
+        debug('Clear text element', `${element.tagName}: ${directTextLength} characters`);
         return true;
       }
       
-      // Check DIV's style to see if it looks like a text container
-      if ((style.fontFamily !== 'inherit' || style.fontSize !== 'inherit' || style.color !== 'inherit') && directTextLength >= 2) {
-        debug('Style similar to text container DIV', `${element.tagName}: ${directTextLength} characters`);
+      // Check inline text elements
+      const inlineTextElements = ['SPAN', 'A', 'STRONG', 'EM', 'B', 'I', 'U', 'SUP', 'SUB', 'MARK', 'SMALL', 'DEL', 'INS', 'Q', 'ABBR', 'CITE', 'DFN', 'LABEL'];
+      if (inlineTextElements.includes(element.tagName) && directTextLength >= 2) {
+        debug('Inline text element', `${element.tagName}: ${directTextLength} characters`);
         return true;
       }
       
-      debug('Regular DIV does not meet text requirements', `Direct text length: ${directTextLength} characters`);
+      // Check table cell elements
+      if (['TD', 'TH'].includes(element.tagName) && directTextLength >= 2) {
+        debug('Table cell text', `${element.tagName}: ${directTextLength} characters`);
+        return true;
+      }
+      
+      // Check list elements
+      if (['LI', 'DT', 'DD'].includes(element.tagName) && directTextLength >= 2) {
+        debug('List element text', `${element.tagName}: ${directTextLength} characters`);
+        return true;
+      }
+      
+      // Check form elements
+      if (['BUTTON', 'TEXTAREA'].includes(element.tagName) && directTextLength >= 2) {
+        debug('Form element text', `${element.tagName}: ${directTextLength} characters`);
+        return true;
+      }
+      
+      // 通用性优化：降低对DIV元素的要求
+      if (element.tagName === 'DIV') {
+        // 降低DIV文本长度要求
+        if (directTextLength >= 5) {
+          debug('Text-rich DIV', `Direct text length: ${directTextLength} characters`);
+          return true;
+        }
+        
+        // Check DIV's style to see if it looks like a text container
+        if ((style.fontFamily !== 'inherit' || style.fontSize !== 'inherit' || style.color !== 'inherit') && directTextLength >= 2) {
+          debug('Style similar to text container DIV', `${element.tagName}: ${directTextLength} characters`);
+          return true;
+        }
+        
+        debug('Regular DIV does not meet text requirements', `Direct text length: ${directTextLength} characters`);
+        return false;
+      }
+      
+      // 通用性增强：对于其他元素，如果有直接的文本内容且有一定长度，也视为文本元素
+      if (directTextLength >= 3) {
+        debug('Other element with direct text', `${element.tagName}: ${directTextLength} characters`);
+        return true;
+      }
+      
+      // By default, if it doesn't meet any of the above conditions, it's not considered a text element
+      debug('Does not meet any text element conditions', element.tagName);
+      return false;
+    } catch (err) {
+      console.warn('Error in hasTextContent:', err);
       return false;
     }
-    
-    // 通用性增强：对于其他元素，如果有直接的文本内容且有一定长度，也视为文本元素
-    if (directTextLength >= 3) {
-      debug('Other element with direct text', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // By default, if it doesn't meet any of the above conditions, it's not considered a text element
-    debug('Does not meet any text element conditions', element.tagName);
-    return false;
   }
 
   /**
