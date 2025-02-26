@@ -103,6 +103,6 @@ Thank you for considering contributing to the FontDetector project! This documen
 
 If you have any questions, please contact the project maintainers:
 - Ask questions in GitHub Issues
-- Send emails to: your-email@example.com
+- Send emails to: zanwei.guo@outlook.com
 
 Thank you for your contributions to the FontDetector project! 
