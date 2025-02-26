@@ -433,7 +433,7 @@ function injectCSS() {
       color: #A8A8A8;
       font-size: 12px; /* Title font size */
       margin-bottom: 6px;
-      gap: 4px;
+      gap: 2px;
     }
   
     #fontInfoTooltip div span, .fixed-tooltip div span {
