@@ -508,6 +508,7 @@
         color: #A8A8A8;
         font-size: 12px; /* Title font size */
         margin-bottom: 6px;
+        gap: 4px;
       }
     
       #fontInfoTooltip div span, .fixed-tooltip div span {
@@ -617,25 +618,88 @@
    * @returns {Element} - Tooltip DOM element
    */
   function createTooltip() {
-    // If existing tooltip, remove first
-    const existingTooltip = document.getElementById('fontInfoTooltip');
-    if (existingTooltip) {
-      existingTooltip.remove();
+    try {
+      // If existing tooltip, remove first
+      const existingTooltip = document.getElementById('fontInfoTooltip');
+      if (existingTooltip) {
+        try {
+          existingTooltip.remove();
+        } catch (err) {
+          console.warn('Error removing existing tooltip:', err);
+          // 尝试使用parentNode.removeChild方式移除
+          if (existingTooltip.parentNode) {
+            existingTooltip.parentNode.removeChild(existingTooltip);
+          }
+        }
+      }
+      
+      const tooltip = document.createElement('div'); 
+      tooltip.classList.add('font-detector');
+      tooltip.setAttribute('id', 'fontInfoTooltip');
+      tooltip.style.position = 'fixed'; // Use fixed positioning
+      tooltip.style.display = 'none';
+      tooltip.style.zIndex = '2147483647'; // Highest z-index
+      tooltip.style.pointerEvents = 'none'; // Don't block mouse events
+      
+      // 增强兼容性：设置更多保证可见性的样式
+      tooltip.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
+      tooltip.style.color = '#ffffff'; 
+      tooltip.style.padding = '16px';
+      tooltip.style.borderRadius = '12px';
+      tooltip.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
+      tooltip.style.fontSize = '14px';
+      tooltip.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      tooltip.style.width = '250px';
+      tooltip.style.maxWidth = '90vw';
+      tooltip.style.maxHeight = '80vh';
+      tooltip.style.overflow = 'auto';
+      
+      // 增强兼容性：确保能添加到DOM中
+      try {
+        // 首选添加到body
+        document.body.appendChild(tooltip);
+      } catch (err) {
+        console.warn('Error appending tooltip to body:', err);
+        try {
+          // 如果添加到body失败，尝试添加到documentElement
+          document.documentElement.appendChild(tooltip);
+        } catch (err2) {
+          console.error('Failed to add tooltip to DOM:', err2);
+          
+          // 最后尝试创建一个新的container并添加
+          try {
+            const container = document.createElement('div');
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.zIndex = '2147483647';
+            document.documentElement.appendChild(container);
+            container.appendChild(tooltip);
+          } catch (err3) {
+            console.error('All attempts to add tooltip failed:', err3);
+            throw new Error('Cannot create tooltip: DOM access issues');
+          }
+        }
+      }
+      
+      console.log('Tooltip created and added to DOM');
+      return tooltip;
+    } catch (err) {
+      console.error('Critical error creating tooltip:', err);
+      // 返回一个基本的tooltip对象，避免null引用错误
+      const dummyTooltip = {
+        style: {},
+        classList: { add: () => {}, remove: () => {} },
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        innerHTML: '',
+        lastContentUpdate: 0,
+        remove: () => {}
+      };
+      return dummyTooltip;
     }
-    
-    const tooltip = document.createElement('div'); 
-    tooltip.classList.add('font-detector');
-    tooltip.setAttribute('id', 'fontInfoTooltip');
-    tooltip.style.position = 'fixed'; // Use fixed positioning
-    tooltip.style.display = 'none';
-    tooltip.style.zIndex = '2147483647'; // Highest z-index
-    tooltip.style.pointerEvents = 'none'; // Don't block mouse events
-    
-    // Ensure added to body rather than documentElement, more reliable
-    document.body.appendChild(tooltip); 
-    
-    console.log('Tooltip created and added to DOM');
-    return tooltip;
   }
 
   /**
@@ -890,6 +954,8 @@
       return;
     }
     
+    // 通用处理：每个网站都应用增强的Tooltip样式和位置计算
+    
     // If tooltip is not visible, make it visible
     if (tooltip.style.display === 'none') {
       // Initial content
@@ -900,14 +966,56 @@
       tooltip.style.display = 'block';
       tooltip.style.opacity = '1';
       tooltip.style.position = 'fixed'; // Use fixed position for better performance
+      
+      // 通用增强：确保Tooltip在各种网站上都可见
+      tooltip.style.zIndex = '2147483647'; // 确保最高层级
+      tooltip.style.backgroundColor = 'rgba(30, 30, 30, 0.9)'; // 更高对比度
+      tooltip.style.border = '1px solid rgba(255, 255, 255, 0.2)'; // 添加边框增强可见性
+      tooltip.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)'; // 添加阴影
     }
     
-    // Calculate position (10px offset from cursor)
-    const x = event.clientX + 10;
-    const y = event.clientY + 10;
+    // 通用增强：为所有网站使用更合理的偏移量
+    const offsetX = 15; // 水平偏移
+    const offsetY = 15; // 垂直偏移
+    
+    // Calculate position with offsets
+    const x = event.clientX + offsetX;
+    const y = event.clientY + offsetY;
+    
+    // 通用增强：智能边界检测，防止Tooltip溢出屏幕
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    // 如果会溢出右侧边缘，则向左偏移
+    let adjustedX = x;
+    if (x + tooltipRect.width > windowWidth) {
+      adjustedX = windowWidth - tooltipRect.width - 5;
+    }
+    
+    // 如果会溢出底部边缘，则向上偏移
+    let adjustedY = y;
+    if (y + tooltipRect.height > windowHeight) {
+      adjustedY = windowHeight - tooltipRect.height - 5;
+    }
+    
+    // 如果现在会溢出左侧边缘，则修正为靠左侧显示
+    if (adjustedX < 0) {
+      adjustedX = 5; // 靠左侧5px显示
+    }
+    
+    // 如果现在会溢出顶部边缘，则修正为靠顶部显示
+    if (adjustedY < 0) {
+      adjustedY = 5; // 靠顶部5px显示
+    }
+    
+    // 通用增强：确保Tooltip在任何情况下都是可见的
+    // 如果Tooltip太大，可能无法完全显示，则优先显示左上角
+    adjustedX = Math.max(5, Math.min(windowWidth - Math.min(tooltipRect.width, windowWidth/2), adjustedX));
+    adjustedY = Math.max(5, Math.min(windowHeight - Math.min(tooltipRect.height, windowHeight/2), adjustedY));
     
     // Only update position, not content, for better performance during movement
-    updateTooltipPosition(tooltip, x, y);
+    updateTooltipPosition(tooltip, adjustedX, adjustedY);
     
     // Update content only every 200ms
     const now = Date.now();
@@ -1087,9 +1195,9 @@
       return false;
     }
     
-    // Check element dimensions - increased minimum size requirement
+    // 通用性放宽：减小尺寸要求 - 对所有网站都更宽松
     const rect = element.getBoundingClientRect();
-    if (rect.width < 10 || rect.height < 10) {
+    if (rect.width < 5 || rect.height < 5) {
       debug('Element too small', `${element.tagName} ${rect.width}x${rect.height}`);
       return false;
     }
@@ -1116,8 +1224,8 @@
       }
     }
     
-    // More strict text length requirement
-    if (text.length < 3) {
+    // 通用性放宽：减少文本长度要求
+    if (text.length < 2) {
       debug('Text too short', `${element.tagName}: ${text}`);
       return false;
     }
@@ -1129,62 +1237,81 @@
       return false;
     }
     
-    // Check if it is meaningful text content
-    // Must contain letters, numbers, or Chinese, and at least 3 characters
-    const meaningfulTextPattern = /[a-zA-Z0-9\u4e00-\u9fa5]{3,}/;
+    // 通用性放宽：降低有意义文本的要求
+    const meaningfulTextPattern = /[a-zA-Z0-9\u4e00-\u9fa5]{2,}/;
     if (!meaningfulTextPattern.test(text)) {
       debug('Does not contain meaningful text', `${element.tagName}: ${text}`);
       return false;
     }
     
+    // 通用性增强：检查元素是否有样式，不再限于特定网站
+    if (element.classList.length > 0 || 
+        style.fontFamily !== 'inherit' || 
+        style.fontSize !== 'inherit' ||
+        style.color !== 'inherit' ||
+        style.textAlign !== 'inherit') {
+      // 如果元素有自定义样式，更可能是有意义的文本内容
+      // 但仍需确保至少有一些文本内容
+      if (directTextLength > 0 || text.length >= 2) {
+        debug('Element with styling', `${element.tagName}`);
+        return true;
+      }
+    }
+    
     // Check if it is a clear text element
     const textElements = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE'];
-    if (textElements.includes(element.tagName) && directTextLength >= 3) {
+    if (textElements.includes(element.tagName) && directTextLength >= 2) {
       debug('Clear text element', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
     // Check inline text elements
     const inlineTextElements = ['SPAN', 'A', 'STRONG', 'EM', 'B', 'I', 'U', 'SUP', 'SUB', 'MARK', 'SMALL', 'DEL', 'INS', 'Q', 'ABBR', 'CITE', 'DFN', 'LABEL'];
-    if (inlineTextElements.includes(element.tagName) && directTextLength >= 3) {
+    if (inlineTextElements.includes(element.tagName) && directTextLength >= 2) {
       debug('Inline text element', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
     // Check table cell elements
-    if (['TD', 'TH'].includes(element.tagName) && directTextLength >= 3) {
+    if (['TD', 'TH'].includes(element.tagName) && directTextLength >= 2) {
       debug('Table cell text', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
     // Check list elements
-    if (['LI', 'DT', 'DD'].includes(element.tagName) && directTextLength >= 3) {
+    if (['LI', 'DT', 'DD'].includes(element.tagName) && directTextLength >= 2) {
       debug('List element text', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
     // Check form elements
-    if (['BUTTON', 'TEXTAREA'].includes(element.tagName) && directTextLength >= 3) {
+    if (['BUTTON', 'TEXTAREA'].includes(element.tagName) && directTextLength >= 2) {
       debug('Form element text', `${element.tagName}: ${directTextLength} characters`);
       return true;
     }
     
-    // Additional check for DIV elements - stricter requirements
+    // 通用性优化：降低对DIV元素的要求
     if (element.tagName === 'DIV') {
-      // Only accept DIVs with a lot of text (at least 20 characters)
-      if (directTextLength >= 20) {
+      // 降低DIV文本长度要求
+      if (directTextLength >= 5) {
         debug('Text-rich DIV', `Direct text length: ${directTextLength} characters`);
         return true;
       }
       
       // Check DIV's style to see if it looks like a text container
-      if (style.fontFamily !== 'inherit' && style.textAlign !== 'start' && directTextLength >= 5) {
+      if ((style.fontFamily !== 'inherit' || style.fontSize !== 'inherit' || style.color !== 'inherit') && directTextLength >= 2) {
         debug('Style similar to text container DIV', `${element.tagName}: ${directTextLength} characters`);
         return true;
       }
       
       debug('Regular DIV does not meet text requirements', `Direct text length: ${directTextLength} characters`);
       return false;
+    }
+    
+    // 通用性增强：对于其他元素，如果有直接的文本内容且有一定长度，也视为文本元素
+    if (directTextLength >= 3) {
+      debug('Other element with direct text', `${element.tagName}: ${directTextLength} characters`);
+      return true;
     }
     
     // By default, if it doesn't meet any of the above conditions, it's not considered a text element
@@ -1199,67 +1326,122 @@
   function handleMouseOver(event) {
     if (!isActive) return;
     
-    let targetElement = event.target;
-    
-    // If it's a text node, use its parent element
-    if (targetElement.nodeType === Node.TEXT_NODE) {
-      targetElement = targetElement.parentElement;
-    }
-    
-    // If the cursor is at the edge of the window or in a blank area, don't display the tooltip
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    
-    // Check if the mouse is at the edge of the window
-    const edgeThreshold = 15; // Edge threshold (pixels)
-    if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
-        mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
-      if (currentTarget) {
-        debug('Mouse at window edge', `${mouseX},${mouseY}`);
-        currentTarget = null;
-        hideTooltip(tooltip);
-      }
-      return;
-    }
-    
-    // Check if the target element is the root or body element of the document (possibly a blank area)
-    if (targetElement === document.documentElement || targetElement === document.body) {
-      if (currentTarget) {
-        debug('Mouse over root element', targetElement.tagName);
-        currentTarget = null;
-        hideTooltip(tooltip);
-      }
-      return;
-    }
-    
-    // Check if it's a blank area (e.g., blank part of a large container element)
-    const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
-    if (elementUnderPoint !== targetElement && 
-        (elementUnderPoint === document.documentElement || elementUnderPoint === document.body)) {
-      if (currentTarget) {
-        debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
-        currentTarget = null;
-        hideTooltip(tooltip);
-      }
-      return;
-    }
-    
-    // Only process element nodes containing text
-    if (targetElement && targetElement.nodeType === Node.ELEMENT_NODE && hasTextContent(targetElement)) {
-      debug('Mouse hovering over text element', targetElement.tagName);
-      currentTarget = targetElement;
+    try {
+      let targetElement = event.target;
       
-      // Use requestAnimationFrame to ensure smooth display
-      requestUpdate(() => {
-        showTooltip(event, tooltip);
-      });
-    } else {
-      // Not a text element, hide tooltip
-      debug('Mouse hovering over non-text element', targetElement?.tagName);
+      // If it's a text node, use its parent element
+      if (targetElement.nodeType === Node.TEXT_NODE) {
+        targetElement = targetElement.parentElement;
+      }
+      
+      // 如果目标元素为null或undefined，直接返回
+      if (!targetElement) {
+        return;
+      }
+      
+      // If the cursor is at the edge of the window or in a blank area, don't display the tooltip
+      const mouseX = event.clientX;
+      const mouseY = event.clientY;
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // 边缘检测：减少阈值，使其在更接近边缘时仍能工作
+      const edgeThreshold = 10; // 从15改为10，更接近边缘也能工作
+      if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
+          mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
+        if (currentTarget) {
+          debug('Mouse at window edge', `${mouseX},${mouseY}`);
+          currentTarget = null;
+          hideTooltip(tooltip);
+        }
+        return;
+      }
+      
+      // 改进：只在明确无文本时隐藏，更宽容的检测
+      if (targetElement === document.documentElement || targetElement === document.body) {
+        // 检查鼠标位置下是否有其他元素
+        const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
+        if (elementUnderPoint && elementUnderPoint !== document.documentElement && 
+            elementUnderPoint !== document.body && elementUnderPoint !== targetElement) {
+          // 如果有其他元素，使用它而不是document/body
+          targetElement = elementUnderPoint;
+        } else {
+          if (currentTarget) {
+            debug('Mouse over root/body element', targetElement.tagName);
+            currentTarget = null;
+            hideTooltip(tooltip);
+          }
+          return;
+        }
+      }
+      
+      // 改进：更可靠的elementFromPoint检查
+      try {
+        const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
+        // 对于空白区域的更可靠检测
+        if (elementUnderPoint !== targetElement) {
+          // 如果实际元素和事件目标不同，但都有效且不是body/html
+          if (elementUnderPoint && elementUnderPoint !== document.documentElement && 
+              elementUnderPoint !== document.body) {
+            // 使用实际元素
+            targetElement = elementUnderPoint;
+          } 
+          // 如果元素是body/html（可能是空白区域）
+          else if (elementUnderPoint === document.documentElement || 
+                  elementUnderPoint === document.body) {
+            if (currentTarget) {
+              debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
+              currentTarget = null;
+              hideTooltip(tooltip);
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Error checking elementFromPoint:', err);
+        // 如果elementFromPoint失败，继续使用原始targetElement
+      }
+      
+      // 改进：使用try-catch包裹hasTextContent调用，防止意外错误
+      let hasText = false;
+      try {
+        hasText = targetElement && targetElement.nodeType === Node.ELEMENT_NODE && 
+                  hasTextContent(targetElement);
+      } catch (err) {
+        console.warn('Error in hasTextContent:', err);
+        hasText = false;
+      }
+      
+      // 仅处理包含文本的元素节点
+      if (hasText) {
+        debug('Mouse hovering over text element', targetElement.tagName);
+        currentTarget = targetElement;
+        
+        // 使用requestAnimationFrame确保平滑显示
+        try {
+          requestUpdate(() => {
+            showTooltip(event, tooltip);
+          });
+        } catch (err) {
+          console.warn('Error in requestUpdate/showTooltip:', err);
+          // 直接尝试显示tooltip
+          showTooltip(event, tooltip);
+        }
+      } else {
+        // 非文本元素，隐藏tooltip
+        debug('Mouse hovering over non-text element', targetElement?.tagName);
+        currentTarget = null;
+        hideTooltip(tooltip);
+      }
+    } catch (err) {
+      console.error('Error in handleMouseOver:', err);
+      // 发生错误时重置状态
       currentTarget = null;
-      hideTooltip(tooltip);
+      try {
+        hideTooltip(tooltip);
+      } catch (err2) {
+        console.warn('Error hiding tooltip after error:', err2);
+      }
     }
   }
 
@@ -1292,70 +1474,125 @@
   function handleMouseMove(event) {
     if (!isActive) return;
     
-    let targetElement = event.target;
-    
-    // If it's a text node, use its parent element
-    if (targetElement.nodeType === Node.TEXT_NODE) {
-      targetElement = targetElement.parentElement;
-    }
-    
-    // If the cursor is at the edge of the window or in a blank area, hide the tooltip
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    
-    // Check if the mouse is at the edge of the window
-    const edgeThreshold = 15; // Edge threshold (pixels)
-    if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
-        mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
-      if (currentTarget) {
-        debug('Mouse at window edge', `${mouseX},${mouseY}`);
-        currentTarget = null;
-        hideTooltip(tooltip);
-      }
-      return;
-    }
-    
-    // Check if the target element is the root or body element of the document (possibly a blank area)
-    if (targetElement === document.documentElement || targetElement === document.body) {
-      if (currentTarget) {
-        debug('Mouse over root element', targetElement.tagName);
-        currentTarget = null;
-        hideTooltip(tooltip);
-      }
-      return;
-    }
-    
-    // Check if it's a blank area (e.g., blank part of a large container element)
-    const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
-    if (elementUnderPoint !== targetElement && 
-        (elementUnderPoint === document.documentElement || elementUnderPoint === document.body)) {
-      if (currentTarget) {
-        debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
-        currentTarget = null;
-        hideTooltip(tooltip);
-      }
-      return;
-    }
-    
-    // Ensure there is a valid element and it contains text
-    if (targetElement && targetElement.nodeType === Node.ELEMENT_NODE && hasTextContent(targetElement)) {
-      // Update current target
-      if (currentTarget !== targetElement) {
-        debug('Set new target element', targetElement.tagName);
-        currentTarget = targetElement;
+    try {
+      let targetElement = event.target;
+      
+      // If it's a text node, use its parent element
+      if (targetElement.nodeType === Node.TEXT_NODE) {
+        targetElement = targetElement.parentElement;
       }
       
-      // Use requestAnimationFrame to ensure smooth animation
-      requestUpdate(() => {
-      showTooltip(event, tooltip);
-      });
-    } else if (currentTarget) {
-      // If not on text and there was a target, hide tooltip
-      debug('Mouse not on text', targetElement.tagName);
+      // 如果目标元素为null或undefined，直接返回
+      if (!targetElement) {
+        return;
+      }
+      
+      // If the cursor is at the edge of the window or in a blank area, hide the tooltip
+      const mouseX = event.clientX;
+      const mouseY = event.clientY;
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // 边缘检测：减少阈值，使其在更接近边缘时仍能工作
+      const edgeThreshold = 10; // 从15改为10，更接近边缘也能工作
+      if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
+          mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
+        if (currentTarget) {
+          debug('Mouse at window edge', `${mouseX},${mouseY}`);
+          currentTarget = null;
+          hideTooltip(tooltip);
+        }
+        return;
+      }
+      
+      // 改进：只在明确无文本时隐藏，更宽容的检测
+      if (targetElement === document.documentElement || targetElement === document.body) {
+        // 检查鼠标位置下是否有其他元素
+        const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
+        if (elementUnderPoint && elementUnderPoint !== document.documentElement && 
+            elementUnderPoint !== document.body && elementUnderPoint !== targetElement) {
+          // 如果有其他元素，使用它而不是document/body
+          targetElement = elementUnderPoint;
+        } else {
+          if (currentTarget) {
+            debug('Mouse over root/body element', targetElement.tagName);
+            currentTarget = null;
+            hideTooltip(tooltip);
+          }
+          return;
+        }
+      }
+      
+      // 改进：更可靠的elementFromPoint检查
+      try {
+        const elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
+        // 对于空白区域的更可靠检测
+        if (elementUnderPoint !== targetElement) {
+          // 如果实际元素和事件目标不同，但都有效且不是body/html
+          if (elementUnderPoint && elementUnderPoint !== document.documentElement && 
+              elementUnderPoint !== document.body) {
+            // 使用实际元素
+            targetElement = elementUnderPoint;
+          } 
+          // 如果元素是body/html（可能是空白区域）
+          else if (elementUnderPoint === document.documentElement || 
+                  elementUnderPoint === document.body) {
+            if (currentTarget) {
+              debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
+              currentTarget = null;
+              hideTooltip(tooltip);
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Error checking elementFromPoint:', err);
+        // 如果elementFromPoint失败，继续使用原始targetElement
+      }
+      
+      // 改进：使用try-catch包裹hasTextContent调用，防止意外错误
+      let hasText = false;
+      try {
+        hasText = targetElement && targetElement.nodeType === Node.ELEMENT_NODE && 
+                 hasTextContent(targetElement);
+      } catch (err) {
+        console.warn('Error in hasTextContent:', err);
+        hasText = false;
+      }
+      
+      // 仅处理包含文本的元素节点
+      if (hasText) {
+        // Update current target
+        if (currentTarget !== targetElement) {
+          debug('Set new target element', targetElement.tagName);
+          currentTarget = targetElement;
+        }
+        
+        // 使用requestAnimationFrame确保平滑显示
+        try {
+          requestUpdate(() => {
+            showTooltip(event, tooltip);
+          });
+        } catch (err) {
+          console.warn('Error in requestUpdate/showTooltip:', err);
+          // 直接尝试显示tooltip
+          showTooltip(event, tooltip);
+        }
+      } else if (currentTarget) {
+        // 非文本元素，隐藏tooltip
+        debug('Mouse not on text', targetElement?.tagName);
+        currentTarget = null;
+        hideTooltip(tooltip);
+      }
+    } catch (err) {
+      console.error('Error in handleMouseMove:', err);
+      // 发生错误时重置状态
       currentTarget = null;
-      hideTooltip(tooltip);
+      try {
+        hideTooltip(tooltip);
+      } catch (err2) {
+        console.warn('Error hiding tooltip after error:', err2);
+      }
     }
   }
 
