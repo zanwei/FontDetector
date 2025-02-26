@@ -33,7 +33,7 @@ FontDetector is a powerful browser extension that helps designers, developers, a
 2. Hover your mouse over any text element on the webpage to view its font information
 3. Click the extension icon again or press ESC key to deactivate the extension
 
-### Creating Fixed Tooltips
+## Creating Fixed Tooltips
 1. With the extension active, select a piece of text
 2. After selection, a fixed information tooltip will be automatically created
 3. Repeat this operation to create multiple fixed tooltips for comparison
@@ -42,9 +42,6 @@ FontDetector is a powerful browser extension that helps designers, developers, a
 ### Copying Information
 - Click the copy icon in the tooltip to copy the corresponding value to clipboard
 - A blue checkmark icon indicates successful copying
-
-### Searching Fonts
-- Click on the font name to search for information about that font in a new tab
 
 ## Technical Details
 
