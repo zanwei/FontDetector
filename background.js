@@ -69,6 +69,13 @@ async function safeExecute(fn, ...args) {
       extensionContextValid = false;
       console.warn('Extension context invalidated during execution');
     }
+    
+    // Add specific handling for 'No tab with id' errors
+    if (error && error.message && error.message.includes('No tab with id')) {
+      console.warn(`Tab operation failed: ${error.message} - Tab may have been closed or navigated away`);
+      return null; // Return null instead of throwing for this specific error
+    }
+    
     console.error(`Error executing ${fn.name}:`, error);
     throw error;
   }
@@ -84,7 +91,7 @@ async function toggleExtension(tab) {
     return;
   }
 
-  // 检查标签页URL是否支持
+  // Check if tab URL is supported
   if (tab.url) {
     const url = tab.url.toLowerCase();
     if (url.startsWith('chrome:') || 
@@ -95,13 +102,13 @@ async function toggleExtension(tab) {
         url.startsWith('devtools:') ||
         !url.startsWith('http')) {
       console.log(`Cannot toggle extension on unsupported URL: ${url}`);
-      alert('FontDetector不支持在此页面上使用。请在普通网页上使用。');
+      alert('FontDetector cannot be used on this page. Please use it on regular web pages.');
       return;
     }
   }
 
   try {
-    // 首先检查标签页状态
+    // First check tab status
     let canExecute = true;
     try {
       await new Promise((resolve, reject) => {
@@ -122,7 +129,7 @@ async function toggleExtension(tab) {
       });
     } catch (err) {
       console.warn('Cannot toggle extension:', err.message);
-      alert('FontDetector无法在此页面上运行，可能是因为该页面是错误页面或受限页面。');
+      alert('FontDetector cannot run on this page, possibly because it is an error page or restricted page.');
       return;
     }
     
@@ -137,16 +144,16 @@ async function toggleExtension(tab) {
         });
       });
     } catch (err) {
-      // 处理特定错误
+      // Handle specific errors
       if (err.message && (
           err.message.includes('showing error page') || 
           err.message.includes('cannot access a chrome') ||
           err.message.includes('cannot be scripted due to'))) {
         console.log('Cannot inject script on error or restricted page:', err.message);
-        alert('FontDetector无法在此页面上运行，可能是因为该页面是错误页面或受限页面。');
+        alert('FontDetector cannot run on this page, possibly because it is an error page or restricted page.');
         return;
       }
-      // 对于其他错误，继续抛出
+      // For other errors, continue throwing
       throw err;
     }
 
@@ -156,7 +163,7 @@ async function toggleExtension(tab) {
     // Store the current activation state of the extension (assuming it will toggle)
     let isActivating = true;
 
-    // 发送信息前检查页面状态
+    // Check page status before sending message
     try {
       await chrome.tabs.get(tab.id);
     } catch (err) {
@@ -214,7 +221,7 @@ async function toggleExtension(tab) {
  * @returns {Promise<boolean>} - True if content script is loaded
  */
 async function checkContentScriptLoaded(tabId) {
-  // 首先检查标签页状态
+  // First check tab status
   try {
     const tab = await new Promise((resolve, reject) => {
       chrome.tabs.get(tabId, (tab) => {
@@ -226,7 +233,7 @@ async function checkContentScriptLoaded(tabId) {
       });
     });
     
-    // 检查URL是否支持
+    // Check if URL is supported
     const url = tab.url?.toLowerCase() || '';
     if (url.startsWith('chrome:') || 
         url.startsWith('chrome-extension:') || 
@@ -251,7 +258,7 @@ async function checkContentScriptLoaded(tabId) {
           const error = chrome.runtime.lastError.message;
           console.log('Content script check error:', error);
           
-          // 检查特定错误类型
+          // Check specific error types
           if (error.includes('showing error page') || 
               error.includes('cannot access a chrome') ||
               error.includes('cannot be scripted due to')) {
@@ -289,6 +296,29 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 /**
+ * Check if a tab exists and is accessible
+ * @param {number} tabId - The tab ID to check
+ * @returns {Promise<boolean>} - Whether the tab exists and is accessible
+ */
+async function tabExists(tabId) {
+  try {
+    return await new Promise((resolve) => {
+      chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError) {
+          console.warn(`Tab check failed: ${chrome.runtime.lastError.message}`);
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
+    });
+  } catch (err) {
+    console.warn('Error checking tab existence:', err);
+    return false;
+  }
+}
+
+/**
  * Listens for tab updates
  * Ensures the content script is loaded when a tab is updated
  */
@@ -298,9 +328,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     return;
   }
   
-  // 确保页面已完全加载并且URL是我们可以操作的
+  // Ensure page is fully loaded and URL is operable
   if (changeInfo.status === 'complete' && tab.url) {
-    // 跳过不支持的URL schemes和错误页面
+    // Skip unsupported URL schemes and error pages
     const url = tab.url.toLowerCase();
     if (url.startsWith('chrome:') || 
         url.startsWith('chrome-extension:') || 
@@ -313,49 +343,67 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       return;
     }
     
-    // 检查标签页状态
-    try {
+    // Check tab status
+    tabExists(tabId).then(exists => {
+      if (!exists) {
+        console.log(`Tab ${tabId} no longer exists, skipping update`);
+        return;
+      }
+      
       chrome.tabs.get(tabId, function(currentTab) {
         if (chrome.runtime.lastError) {
           console.warn('Error getting tab:', chrome.runtime.lastError.message);
           return;
         }
         
-        // 忽略出错的页面
+        // Ignore out-of-date pages
         if (currentTab.status === 'error' || !currentTab.url.startsWith('http')) {
           console.log('Skipping error page or non-http page');
           return;
         }
         
-        // 安全执行内容脚本注入
+        // Safe execute content script injection
         safeExecute(async () => {
           try {
+            // Verify tab still exists before proceeding
+            if (!(await tabExists(tabId))) {
+              console.log(`Tab ${tabId} no longer exists, aborting script injection`);
+              return;
+            }
+            
             const isLoaded = await checkContentScriptLoaded(tabId);
             if (!isLoaded) {
               console.log('Content script not loaded after tab update, injecting now...');
-              await chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                files: ['contentScript.js']
-              });
+              
+              // Final check before executing script
+              if (await tabExists(tabId)) {
+                await chrome.scripting.executeScript({
+                  target: { tabId: tabId },
+                  files: ['contentScript.js']
+                });
+              } else {
+                console.log(`Tab ${tabId} disappeared before script injection`);
+              }
             }
           } catch (err) {
-            // 处理"Frame with ID 0 is showing error page"错误
+            // Handle "Frame with ID 0 is showing error page" error
             if (err.message && (
                 err.message.includes('showing error page') || 
                 err.message.includes('cannot access a chrome') ||
-                err.message.includes('cannot be scripted due to'))) {
-              console.log('Skipping scripting on error or restricted page:', err.message);
+                err.message.includes('cannot be scripted due to') ||
+                err.message.includes('No tab with id'))) {
+              console.log('Skipping scripting on error, restricted page or closed tab:', err.message);
               return;
             }
-            throw err; // 重新抛出其他错误
+            throw err; // Re-throw other errors
           }
         }).catch(error => {
           console.error('Error handling tab update:', error);
         });
       });
-    } catch (err) {
-      console.error('Error in tab update listener:', err);
-    }
+    }).catch(err => {
+      console.warn('Tab existence check failed:', err);
+    });
   }
 });
 

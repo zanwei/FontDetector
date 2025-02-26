@@ -10,6 +10,8 @@
   let isReinitializing = false; // prevent repeated initialization
   let fixedTooltipPositions = new Set(); // track positions of created fixed tooltips
   let isExtensionContextValid = true; // track extension context validity
+  let lastMouseX = 0, lastMouseY = 0; // for storing mouse position
+  let isCreatingFixedTooltip = false; // flag to prevent mouse events from interfering with new tooltip
 
   // Try to capture all unhandled errors
   window.addEventListener('error', function(event) {
@@ -407,6 +409,28 @@
     try {
       console.log('Removing all fixed tooltips...');
       
+      // If creating tooltip, avoid deleting protected tooltips
+      if (isCreatingFixedTooltip) {
+        console.log('Creating tooltip, only removing unprotected tooltips');
+        // Clean up unprotected tooltips
+        const tooltipsToRemove = document.querySelectorAll('.fixed-tooltip:not([data-protected="true"])');
+        for (let i = 0; i < tooltipsToRemove.length; i++) {
+          try {
+            const t = tooltipsToRemove[i];
+            if (t && t.parentNode) {
+              fixedTooltipPositions.delete(t.dataset.positionKey);
+              t.parentNode.removeChild(t);
+              fixedTooltips = fixedTooltips.filter(tooltip => tooltip !== t);
+            }
+          } catch (err) {
+            console.warn('Error removing unprotected tooltip:', err);
+          }
+        }
+        console.log('Finished removing unprotected tooltips');
+        return;
+      }
+      
+      // Standard deletion logic when no creation is in progress
       // Clean up position records collection
       try {
         fixedTooltipPositions.clear();
@@ -696,103 +720,321 @@
    */
   function createFixedTooltip(event, element) {
     try {
+      console.log('===== Creating fixed tooltip [START] =====');
+      
+      // Get current selection
       const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return null;
+      if (!selection || selection.rangeCount === 0) {
+        console.warn('No valid text selection');
+        return null;
+      }
       
       const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
+      const selectedText = selection.toString().trim();
       
-      // Use more precise position identifier, considering entire page offset
-      const positionKey = `${Math.round(window.pageXOffset + rect.left)},${Math.round(window.pageYOffset + rect.bottom)}`;
+      // Output debug info
+      console.log(`Selected text: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`);
       
-      // Check if there's already a tooltip at the same position
-      const existingTooltips = document.querySelectorAll('.fixed-tooltip');
-      for (let i = 0; i < existingTooltips.length; i++) {
-        const existingTooltip = existingTooltips[i];
-        if (existingTooltip.dataset.positionKey === positionKey) {
-          console.log('Position already has a tooltip, skipping creation');
-          return null;
+      // Declare position variables
+      let tooltipLeft = null;
+      let tooltipTop = null;
+      let positionKey = null;
+      let positionMethod = null;
+      
+      // Method 1: Using getClientRects() - most accurate method
+      console.log('Trying method 1: getClientRects()');
+      try {
+        const rects = range.getClientRects();
+        if (rects && rects.length > 0) {
+          const lastRect = rects[rects.length - 1];
+          if (lastRect && lastRect.width > 0 && lastRect.height > 0) {
+            console.log('Success: Using getClientRects() to get position', lastRect);
+            
+            // Precisely set to 4px below selected text
+            tooltipLeft = window.pageXOffset + lastRect.left;
+            tooltipTop = window.pageYOffset + lastRect.bottom + 4;
+            positionKey = `rects-${Math.round(tooltipLeft)},${Math.round(tooltipTop)}`;
+            positionMethod = 'getClientRects';
+          } else {
+            console.log('Method 1 failed: Invalid rectangle size');
+          }
+        } else {
+          console.log('Method 1 failed: No rectangle obtained');
         }
-        
-        // If two tooltips are too close (< 20px), consider them duplicates
-        const existingLeft = parseFloat(existingTooltip.style.left);
-        const existingTop = parseFloat(existingTooltip.style.top);
-        const newLeft = window.pageXOffset + rect.left;
-        const newTop = window.pageYOffset + rect.bottom + 10;
-        
-        if (Math.abs(existingLeft - newLeft) < 20 && Math.abs(existingTop - newTop) < 20) {
-          console.log('Position too close to existing tooltip, skipping creation');
-          return null;
+      } catch (err) {
+        console.warn('Method 1 error:', err);
+      }
+      
+      // Method 2: Using getBoundingClientRect()
+      if (!tooltipLeft || !tooltipTop) {
+        console.log('Trying method 2: getBoundingClientRect()');
+        try {
+          const rect = range.getBoundingClientRect();
+          if (rect && rect.width > 0 && rect.height > 0) {
+            console.log('Success: Using getBoundingClientRect() to get position', rect);
+            
+            tooltipLeft = window.pageXOffset + rect.left;
+            tooltipTop = window.pageYOffset + rect.bottom + 4;
+            positionKey = `rect-${Math.round(tooltipLeft)},${Math.round(tooltipTop)}`;
+            positionMethod = 'getBoundingClientRect';
+          } else {
+            console.log('Method 2 failed: Invalid rectangle size');
+          }
+        } catch (err) {
+          console.warn('Method 2 error:', err);
         }
       }
       
-      // Check if position is already recorded in Set
-      if (fixedTooltipPositions.has(positionKey)) {
-        console.log('Position already recorded in Set, skipping creation');
-        return null;
+      // Method 3: Using mouse position (most reliable fallback)
+      if (!tooltipLeft || !tooltipTop) {
+        console.log('Trying method 3: Using mouse position');
+        if (event && ('clientX' in event || 'pageX' in event)) {
+          console.log('Success: Using mouse event position');
+          
+          tooltipLeft = event.pageX !== undefined ? event.pageX : 
+                        (event.clientX !== undefined ? event.clientX + window.pageXOffset : 0);
+          tooltipTop = event.pageY !== undefined ? event.pageY : 
+                      (event.clientY !== undefined ? event.clientY + window.pageYOffset : 0) + 4;
+          positionKey = `mouse-${Math.round(tooltipLeft)},${Math.round(tooltipTop)}`;
+          positionMethod = 'mouseEvent';
+        } else if (lastMouseX !== undefined && lastMouseY !== undefined) {
+          console.log('Success: Using last recorded mouse position');
+          
+          tooltipLeft = lastMouseX + window.pageXOffset;
+          tooltipTop = lastMouseY + window.pageYOffset + 4;
+          positionKey = `lastmouse-${Math.round(tooltipLeft)},${Math.round(tooltipTop)}`;
+          positionMethod = 'lastMousePosition';
+        } else {
+          console.log('Method 3 failed: Unable to get mouse position');
+        }
       }
       
-      // Record new position
-      fixedTooltipPositions.add(positionKey);
-      
-      const fixedTooltip = document.createElement('div');
-      fixedTooltip.classList.add('font-detector', 'fixed-tooltip');
-      fixedTooltip.dataset.positionKey = positionKey;
-      
-      // Calculate position - place below selected text
-      const tooltipLeft = window.pageXOffset + rect.left;
-      const tooltipTop = window.pageYOffset + rect.bottom + 10;
-      
-      fixedTooltip.style.left = tooltipLeft + 'px';
-      fixedTooltip.style.top = tooltipTop + 'px';
-      
-      // Fill content
-      populateTooltipContent(fixedTooltip, element);
-      
-      // Add close button
-      const closeButton = document.createElement('div');
-      closeButton.classList.add('close-button');
-      closeButton.innerHTML = `<?xml version="1.0" encoding="UTF-8"?><svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 8L40 40" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 40L40 8" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-      closeButton.addEventListener('click', () => {
-        // Remove position from Set when closing
-        fixedTooltipPositions.delete(positionKey);
-        fixedTooltip.remove();
-        fixedTooltips = fixedTooltips.filter(t => t !== fixedTooltip);
-      });
-      
-      if (fixedTooltip) {
-        fixedTooltip.appendChild(closeButton);
+      // Method 4: Final fallback - using viewport center
+      if (!tooltipLeft || !tooltipTop) {
+        console.log('Trying method 4: Using viewport center position');
+        
+        tooltipLeft = window.innerWidth / 2 + window.pageXOffset;
+        tooltipTop = window.innerHeight / 2 + window.pageYOffset;
+        positionKey = `center-${Math.round(tooltipLeft)},${Math.round(tooltipTop)}`;
+        positionMethod = 'viewportCenter';
       }
       
-      // Ensure adding to only one parent element
-      let parentElement = null;
-      if (document.body) {
-        parentElement = document.body; // Prefer body as parent element
-      } else if (document.documentElement) {
-        parentElement = document.documentElement;
-      } else {
-        console.error('Cannot add fixed tooltip: document.body and document.documentElement are null');
-        return null;
+      // Basic position validation
+      if (tooltipLeft < 0 || tooltipTop < 0 || tooltipLeft > 50000 || tooltipTop > 50000) {
+        console.warn('Calculated tooltip position out of reasonable range:', tooltipLeft, tooltipTop);
+        
+        // Use a safer position as fallback
+        tooltipLeft = window.innerWidth / 2 + window.pageXOffset;
+        tooltipTop = window.innerHeight / 2 + window.pageYOffset;
+        positionKey = `safe-${Math.round(tooltipLeft)},${Math.round(tooltipTop)}`;
+        positionMethod = 'safePosition';
       }
       
-      // Add to DOM and record
-      parentElement.appendChild(fixedTooltip);
-      fixedTooltips.push(fixedTooltip);
+      // Ensure position is a valid number
+      tooltipLeft = Math.round(tooltipLeft);
+      tooltipTop = Math.round(tooltipTop);
       
-      console.log(`Created fixed tooltip at position: ${positionKey}`);
-      return fixedTooltip;
+      console.log(`Final tooltip position: left=${tooltipLeft}, top=${tooltipTop}, method=${positionMethod}`);
+      console.log('===== Creating fixed tooltip [END] =====');
+      
+      // Create positioned tooltip
+      return createPositionedTooltip(positionKey, tooltipLeft, tooltipTop, element);
     } catch (err) {
       console.error('Error creating fixed tooltip:', err);
-      // Remove position from Set on error
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        const positionKey = `${Math.round(window.pageXOffset + rect.left)},${Math.round(window.pageYOffset + rect.bottom)}`;
-        fixedTooltipPositions.delete(positionKey);
-      }
       return null;
     }
+  }
+
+  /**
+   * Create a positioned tooltip with the given position and content
+   * @param {string} positionKey - Unique position identifier
+   * @param {number} left - Left position
+   * @param {number} top - Top position  
+   * @param {Element} element - Element to get font info from
+   * @returns {Element} - Created tooltip or null
+   */
+  function createPositionedTooltip(positionKey, left, top, element) {
+    console.log(`Creating positioned tooltip: key=${positionKey}, left=${left}, top=${top}`);
+    
+    // Record original position for debugging
+    const originalLeft = left;
+    const originalTop = top;
+    
+    // Check if there's already a tooltip at the same position
+    const existingTooltips = document.querySelectorAll('.fixed-tooltip');
+    for (let i = 0; i < existingTooltips.length; i++) {
+      const existingTooltip = existingTooltips[i];
+      if (existingTooltip.dataset.positionKey === positionKey) {
+        console.log('Position already has a tooltip, skipping creation');
+        return existingTooltip; // Return existing tooltip instead of null to prevent creation failure
+      }
+      
+      // If two tooltips are too close (< 20px), consider them duplicates
+      const existingLeft = parseFloat(existingTooltip.style.left);
+      const existingTop = parseFloat(existingTooltip.style.top);
+      
+      if (Math.abs(existingLeft - left) < 20 && Math.abs(existingTop - top) < 20) {
+        console.log('Position too close to existing tooltip, skipping creation');
+        return existingTooltip; // Return existing tooltip instead of null to prevent creation failure
+      }
+    }
+    
+    // Check if position is already recorded in Set
+    if (fixedTooltipPositions.has(positionKey)) {
+      console.log('Position already recorded in Set, looking for matching tooltip');
+      // Try to find tooltip matching this position
+      for (let i = 0; i < existingTooltips.length; i++) {
+        if (existingTooltips[i].dataset.positionKey === positionKey) {
+          return existingTooltips[i];
+        }
+      }
+    }
+    
+    // Record new position
+    fixedTooltipPositions.add(positionKey);
+    
+    // Create new fixed tooltip
+    const fixedTooltip = document.createElement('div');
+    fixedTooltip.classList.add('font-detector', 'fixed-tooltip');
+    fixedTooltip.dataset.positionKey = positionKey;
+    fixedTooltip.dataset.creationTime = Date.now().toString(); // Add creation timestamp for debugging
+    fixedTooltip.dataset.originalPosition = `${originalLeft},${originalTop}`; // Record original position
+    
+    // Get viewport dimensions for boundary checking
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Estimate tooltip dimensions (will be adjusted after DOM insertion if needed)
+    const estimatedWidth = 250; // Width from CSS
+    const estimatedHeight = 200; // Approximate height
+    
+    // Adjust position to ensure tooltip stays in viewport while respecting original position
+    let adjustedLeft = left;
+    let adjustedTop = top;
+    
+    // Check right boundary - if it would exceed, adjust to the left
+    if (adjustedLeft + estimatedWidth > viewportWidth - 10) {
+      adjustedLeft = Math.max(10, viewportWidth - estimatedWidth - 10);
+      console.log(`Right boundary adjustment: ${left} -> ${adjustedLeft}`);
+    }
+    
+    // Check bottom boundary - if it would exceed, adjust upward
+    if (adjustedTop + estimatedHeight > viewportHeight - 10) {
+      // For bottom boundary overflow, we have two options:
+      // 1. Move tooltip inside viewport bottom
+      const bottomAdjusted = Math.max(10, viewportHeight - estimatedHeight - 10);
+      
+      // 2. Consider placing tooltip above selection area instead of below
+      const shouldPlaceAbove = positionKey.includes('rects-') || positionKey.includes('rect-');
+      
+      if (shouldPlaceAbove) {
+        const selectedElementHeight = 20; // Assume selected text element height is about 20px
+        const topPosition = top - selectedElementHeight - estimatedHeight - 4; // Place 4px above selection area
+        
+        if (topPosition >= 10) {
+          adjustedTop = topPosition;
+          console.log(`Adjusted placement: from 4px below selection to above, new position = ${adjustedTop}`);
+        } else {
+          adjustedTop = bottomAdjusted;
+          console.log(`Standard bottom boundary adjustment: ${top} -> ${adjustedTop}`);
+        }
+      } else {
+        adjustedTop = bottomAdjusted;
+        console.log(`Standard bottom boundary adjustment: ${top} -> ${adjustedTop}`);
+      }
+    }
+    
+    // Set precise position
+    fixedTooltip.style.left = `${adjustedLeft}px`;
+    fixedTooltip.style.top = `${adjustedTop}px`;
+    
+    // Record adjusted position
+    fixedTooltip.dataset.adjustedPosition = `${adjustedLeft},${adjustedTop}`;
+    
+    // Fill content
+    populateTooltipContent(fixedTooltip, element);
+    
+    // Add close button
+    const closeButton = document.createElement('div');
+    closeButton.classList.add('close-button');
+    closeButton.innerHTML = `<?xml version="1.0" encoding="UTF-8"?><svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 8L40 40" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 40L40 8" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    closeButton.addEventListener('click', () => {
+      // Remove position from Set when closing
+      fixedTooltipPositions.delete(positionKey);
+      fixedTooltip.remove();
+      fixedTooltips = fixedTooltips.filter(t => t !== fixedTooltip);
+    });
+    
+    fixedTooltip.appendChild(closeButton);
+    
+    // Ensure adding to only one parent element
+    let parentElement = null;
+    if (document.body) {
+      parentElement = document.body; // Prefer body as parent element
+    } else if (document.documentElement) {
+      parentElement = document.documentElement;
+    } else {
+      console.error('Cannot add fixed tooltip: document.body and document.documentElement are null');
+      return null;
+    }
+    
+    // Add to DOM and record
+    parentElement.appendChild(fixedTooltip);
+    fixedTooltips.push(fixedTooltip);
+    
+    // Ensure created tooltip is visible
+    fixedTooltip.style.display = 'block';
+    fixedTooltip.style.opacity = '1';
+    // Add protection mechanism against flickering
+    fixedTooltip.dataset.protected = 'true';
+    
+    // Fine-tune position after DOM addition (if needed)
+    setTimeout(() => {
+      try {
+        // Prevent errors from accessing removed elements
+        if (!fixedTooltip.isConnected) return;
+        
+        // Get actual tooltip dimensions
+        const tooltipRect = fixedTooltip.getBoundingClientRect();
+        if (!tooltipRect) return;
+        
+        let needsAdjustment = false;
+        let newLeft = parseFloat(fixedTooltip.style.left);
+        let newTop = parseFloat(fixedTooltip.style.top);
+        
+        // Check if tooltip extends beyond viewport and needs adjustment
+        if (tooltipRect.right > viewportWidth - 5) {
+          newLeft = Math.max(5, viewportWidth - tooltipRect.width - 5);
+          needsAdjustment = true;
+          console.log(`Fine-tune right boundary: ${parseFloat(fixedTooltip.style.left)} -> ${newLeft}`);
+        }
+        
+        if (tooltipRect.bottom > viewportHeight - 5) {
+          newTop = Math.max(5, viewportHeight - tooltipRect.height - 5);
+          needsAdjustment = true;
+          console.log(`Fine-tune bottom boundary: ${parseFloat(fixedTooltip.style.top)} -> ${newTop}`);
+        }
+        
+        if (needsAdjustment) {
+          fixedTooltip.style.left = `${newLeft}px`;
+          fixedTooltip.style.top = `${newTop}px`;
+          fixedTooltip.dataset.finalPosition = `${newLeft},${newTop}`;
+          console.log(`Position needs fine-tuning: left=${newLeft}, top=${newTop}`);
+        }
+      } catch (err) {
+        console.warn('Error fine-tuning tooltip position:', err);
+      }
+    }, 0);
+    
+    // Remove protection status after a while
+    setTimeout(() => {
+      if (fixedTooltip.isConnected) {
+        fixedTooltip.dataset.protected = 'false';
+      }
+    }, 2000); // Protect for 2 seconds
+    
+    console.log(`Created fixed tooltip: position=${positionKey} (${adjustedLeft}, ${adjustedTop})`);
+    return fixedTooltip;
   }
 
   /**
@@ -827,7 +1069,7 @@
 
     // Add color information
     if (colorInfo) {
-      // 格式化LCH和HCL值为可读字符串
+      // Format LCH and HCL values as readable strings
       const lchFormatted = `L: ${colorInfo.lch.l}, C: ${colorInfo.lch.c}, H: ${colorInfo.lch.h}`;
       const hclFormatted = `H: ${colorInfo.hcl.h}, C: ${colorInfo.hcl.c}, L: ${colorInfo.hcl.l}`;
       
@@ -838,18 +1080,21 @@
           </span>
           <span class="copy-icon" data-value="${colorInfo.hex}" title="Copy color value">
             ${copySvg}
+            <span class="check-icon">${checkSvg}</span>
           </span>
         </span></div>
         <div>LCH <span class="value-with-copy">
-          ${lchFormatted}
+          <span>${lchFormatted}</span>
           <span class="copy-icon" data-value="${lchFormatted}" title="Copy LCH value">
             ${copySvg}
+            <span class="check-icon">${checkSvg}</span>
           </span>
         </span></div>
         <div>HCL <span class="value-with-copy">
-          ${hclFormatted}
+          <span>${hclFormatted}</span>
           <span class="copy-icon" data-value="${hclFormatted}" title="Copy HCL value">
             ${copySvg}
+            <span class="check-icon">${checkSvg}</span>
           </span>
         </span></div>
       `;
@@ -859,677 +1104,464 @@
   }
 
   /**
-   * Fill the tooltip content with font information
+   * Populate tooltip content
    * @param {Element} tooltipElement - The tooltip element to populate
    * @param {Element} element - The element to get font info from
    */
   function populateTooltipContent(tooltipElement, element) {
-    // Generate content
-    const content = generateTooltipContent(element);
+    tooltipElement.innerHTML = generateTooltipContent(element);
     
-    // Update the tooltip HTML
-    tooltipElement.innerHTML = content;
-
-    // Add font link click event
-    const fontFamilyLinks = tooltipElement.querySelectorAll('.fontFamilyLink');
-    fontFamilyLinks.forEach(link => {
-      link.addEventListener('click', (event) => {
-      event.preventDefault();
-      chrome.runtime.sendMessage({
-        action: 'searchFontFamily',
-          fontFamily: link.getAttribute('data-font')
-        });
-      });
-    });
-
-    // Add copy icon click event
+    // Add click handlers for copy icons
     const copyIcons = tooltipElement.querySelectorAll('.copy-icon');
     copyIcons.forEach(icon => {
       icon.addEventListener('click', handleCopyClick);
     });
+    
+    // Add click handler for font family link
+    const fontFamilyLink = tooltipElement.querySelector('.fontFamilyLink');
+    if (fontFamilyLink) {
+      fontFamilyLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const fontFamily = e.currentTarget.dataset.font;
+        chrome.runtime.sendMessage({ 
+          action: 'searchFontFamily',
+          fontFamily: fontFamily
+        });
+      });
+    }
   }
 
   /**
-   * Handle copy icon click
+   * Handle click on copy icon
    * @param {Event} event - Click event
    */
   function handleCopyClick(event) {
+    event.preventDefault();
     event.stopPropagation();
+    
     const icon = event.currentTarget;
-    const valueToCopy = icon.getAttribute('data-value');
+    const originalText = icon.dataset.value;
     
-    // Define SVG icon - adjust size to 16px
-    const checkSvg = `<svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M43 11L16.875 37L5 25.1818" stroke="#2596FF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    if (!originalText) {
+      console.warn('Cannot show tooltip: no value to copy');
+      return;
+    }
     
-    // Copy to clipboard
-    navigator.clipboard.writeText(valueToCopy).then(() => {
-      // Change icon to checkmark
-      icon.innerHTML = checkSvg;
-      icon.classList.add('copied');
-      
-      // Set up clipboard monitoring to restore icon after clipboard content changes
-      monitorClipboard(icon, valueToCopy);
-      
-      debug('Copied to clipboard:', valueToCopy);
+    // Copy text to clipboard
+    navigator.clipboard.writeText(originalText).then(() => {
+      monitorClipboard(icon, originalText);
     }).catch(err => {
-      console.error('Could not copy text:', err);
+      console.error('Error copying to clipboard:', err);
     });
   }
 
   /**
-   * Monitor clipboard for changes
+   * Monitor clipboard for successful copy
    * @param {Element} icon - The copy icon element
    * @param {string} originalText - The text that was copied
    */
   function monitorClipboard(icon, originalText) {
-    // Define SVG icon - adjust size to 16px
-    const copySvg = `<svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 12.4316V7.8125C13 6.2592 14.2592 5 15.8125 5H40.1875C41.7408 5 43 6.2592 43 7.8125V32.1875C43 33.7408 41.7408 35 40.1875 35H35.5163" stroke="#a7a7a7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M32.1875 13H7.8125C6.2592 13 5 14.2592 5 15.8125V40.1875C5 41.7408 6.2592 43 7.8125 43H32.1875C33.7408 43 35 41.7408 35 40.1875V15.8125C35 14.2592 33.7408 13 32.1875 13Z" fill="none" stroke="#a7a7a7" stroke-width="4" stroke-linejoin="round"/></svg>`;
+    // Show success state
+    icon.classList.add('copied');
     
-    // Create a polling interval to check if clipboard content changed
-    const checkInterval = setInterval(() => {
-      // Try to read clipboard (this may fail due to permissions)
-      navigator.clipboard.readText().then(clipText => {
-        if (clipText !== originalText) {
-          // Clipboard content changed, restore copy icon
-          icon.innerHTML = copySvg;
-          icon.classList.remove('copied');
-          clearInterval(checkInterval);
-        }
-      }).catch(() => {
-        // If we can't read clipboard, clear after a timeout
-        clearInterval(checkInterval);
-        setTimeout(() => {
-          icon.innerHTML = copySvg;
-          icon.classList.remove('copied');
-        }, 3000); // 3 seconds
-      });
-    }, 1000); // Check every second
-
-    // Fallback: clear copied state after a timeout (in case we can't read clipboard)
+    // Reset after animation
     setTimeout(() => {
-      clearInterval(checkInterval);
-      if (icon.classList.contains('copied')) {
-        icon.innerHTML = copySvg;
-        icon.classList.remove('copied');
-      }
-    }, 5000); // 5 seconds
+      icon.classList.remove('copied');
+    }, 2000);
   }
 
   /**
-   * Update tooltip position only
+   * Update tooltip position
    * @param {Element} tooltip - The tooltip element
-   * @param {number} x - X position
-   * @param {number} y - Y position
+   * @param {number} x - X coordinate
+   * @param {number} y - Y coordinate
    */
   function updateTooltipPosition(tooltip, x, y) {
-    // 添加null检查，防止在tooltip为undefined/null时设置position属性
     if (!tooltip) {
-      console.warn('尝试更新不存在的tooltip位置');
+      console.warn('Attempting to update non-existent tooltip position');
       return;
     }
     
     try {
-      // Set absolute position directly for better browser compatibility
-      tooltip.style.left = `${x}px`;
-      tooltip.style.top = `${y}px`;
+      // Get tooltip dimensions
+      const tooltipWidth = tooltip.offsetWidth;
+      const tooltipHeight = tooltip.offsetHeight;
+      
+      // Calculate position
+      let tooltipLeft = x + 10;
+      let tooltipTop = y + 10;
+      
+      // Adjust if tooltip would extend beyond viewport
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      if (tooltipLeft + tooltipWidth > viewportWidth) {
+        tooltipLeft = Math.max(0, viewportWidth - tooltipWidth - 10);
+      }
+      
+      if (tooltipTop + tooltipHeight > viewportHeight) {
+        tooltipTop = Math.max(0, viewportHeight - tooltipHeight - 10);
+      }
+      
+      // Set position
+      tooltip.style.left = tooltipLeft + 'px';
+      tooltip.style.top = tooltipTop + 'px';
     } catch (err) {
-      console.error('更新tooltip位置时出错:', err);
+      console.error('Error updating tooltip position:', err);
     }
   }
 
   /**
-   * Show the tooltip at the specified position
-   * @param {Event} event - The event object
+   * Show tooltip
+   * @param {Event} event - Mouse event
    * @param {Element} tooltip - The tooltip element
    */
   function showTooltip(event, tooltip) {
-    // 添加null检查，确保tooltip和event都存在
     if (!tooltip || !event) {
-      console.warn('无法显示tooltip：tooltip或event为null');
+      console.warn('Cannot show tooltip: tooltip or event is null');
+      return;
+    }
+    
+    const target = event.target;
+    if (!target) {
+      console.warn('Cannot show tooltip: event.target is null');
       return;
     }
     
     try {
-      // Get the target element, handling text nodes
-      let element = event.target;
-      if (!element) {
-        console.warn('无法显示tooltip：event.target为null');
-        return;
-      }
+      // Get computed style
+      const style = window.getComputedStyle(target);
       
-      if (element.nodeType === Node.TEXT_NODE) {
-        element = element.parentElement;
-      }
+      // Update content
+      populateTooltipContent(tooltip, target);
       
-      // Ensure we have a valid element
-      if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-        return;
-      }
+      // Update position
+      updateTooltipPosition(tooltip, event.pageX, event.pageY);
       
-      // If tooltip is not visible, make it visible
-      if (tooltip.style.display === 'none') {
-        // Initial content
-        populateTooltipContent(tooltip, element);
-        lastTooltipContent = tooltip.innerHTML;
-        
-        // Make visible
-        tooltip.style.display = 'block';
-        tooltip.style.opacity = '1';
-        tooltip.style.position = 'fixed'; // Use fixed position for better performance
-      }
-      
-      // Calculate position (10px offset from cursor)
-      const x = event.clientX + 10;
-      const y = event.clientY + 10;
-      
-      // Only update position, not content, for better performance during movement
-      updateTooltipPosition(tooltip, x, y);
-      
-      // Update content only every 200ms
-      const now = Date.now();
-      if (!tooltip.lastContentUpdate || now - tooltip.lastContentUpdate > 200) {
-        const newContent = generateTooltipContent(element);
-        if (newContent !== lastTooltipContent) {
-          tooltip.innerHTML = newContent;
-          lastTooltipContent = newContent;
-          
-          // Add font link and copy button click events after content update
-          const fontFamilyLinks = tooltip.querySelectorAll('.fontFamilyLink');
-          fontFamilyLinks.forEach(link => {
-            link.addEventListener('click', (event) => {
-              event.preventDefault();
-              chrome.runtime.sendMessage({
-                action: 'searchFontFamily',
-                fontFamily: link.getAttribute('data-font')
-              });
-            });
-          });
-          
-          // Add copy icon click event
-          const copyIcons = tooltip.querySelectorAll('.copy-icon');
-          copyIcons.forEach(icon => {
-            icon.addEventListener('click', handleCopyClick);
-          });
-        }
-        tooltip.lastContentUpdate = now;
-      }
+      // Show tooltip
+      tooltip.style.display = 'block';
+      tooltip.style.opacity = '1';
     } catch (err) {
-      console.error('显示tooltip时出错:', err);
+      console.error('Error showing tooltip:', err);
     }
   }
 
   /**
-   * Hide the tooltip
+   * Hide tooltip
    * @param {Element} tooltip - The tooltip element
    */
   function hideTooltip(tooltip) {
-    if (!tooltip) {
-      console.warn('Attempting to hide non-existent tooltip');
-      return;
-    }
-    
-    try {
-      tooltip.style.transition = ''; // Reset transition  
-      tooltip.style.opacity = '0';
+    if (tooltip) {
       tooltip.style.display = 'none';
-      
-      // Reset animation frame
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-      }
-    } catch (err) {
-      console.error('Error hiding tooltip:', err);
+      tooltip.style.opacity = '0';
     }
   }
 
   /**
-   * Handle keyboard events
-   * @param {Event} event - The keyboard event
+   * Handle keydown events
+   * @param {KeyboardEvent} event - Keyboard event
    */
   function handleKeyDown(event) {
-    if (event.key === 'Escape' && isActive) {
-      // Hide floating tooltip
-      hideTooltip(tooltip);
-      
-      // Disable extension functionality but preserve fixed tooltips
-      isActive = false;
-      
-      // Use new parameter call deinitializeDetector, preserve fixed tooltips
-      deinitializeDetector(true);
-      
-      // Notify background extension state changed
-      chrome.runtime.sendMessage({ action: TOGGLE_ACTION });
-      
-      // Send message to background script to restore icon to default state
-      chrome.runtime.sendMessage({ action: 'updateIcon', iconState: 'inactive' });
+    if (!isActive) return;
+    
+    // Hide tooltip on Escape key
+    if (event.key === 'Escape') {
+      if (tooltip) {
+        hideTooltip(tooltip);
+      }
+      removeAllFixedTooltips();
     }
   }
 
   /**
-   * Add text selection listener
+   * Add selection listener
    */
   function addSelectionListener() {
     document.addEventListener('mouseup', handleTextSelection);
   }
 
   /**
-   * Remove text selection listener
+   * Remove selection listener
    */
   function removeSelectionListener() {
     document.removeEventListener('mouseup', handleTextSelection);
   }
 
   /**
-   * Handle text selection event
-   * @param {Event} event - The mouse event
+   * Handle text selection events
+   * @param {Event} event - Mouse event
    */
   function handleTextSelection(event) {
     if (!isActive) return;
     
     try {
-      // Debounce: cancel previous timeout
+      // Debug info - show selection trigger
+      console.log('Text selection event triggered ⭐');
+      
+      // Immediately record mouse position for more accurate positioning
+      if (event && 'clientX' in event && 'clientY' in event) {
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+        console.log(`Recorded mouse position: x=${lastMouseX}, y=${lastMouseY}`);
+      }
+
+      // Get selection object
+      const selection = window.getSelection();
+      if (!selection) return;
+      
+      // If selection is empty, don't process
+      const text = selection.toString().trim();
+      if (!text) return;
+      
+      console.log(`Selected text: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+      
+      // Set creation flag to prevent mouse event interference
+      isCreatingFixedTooltip = true;
+      
+      // Avoid processing the same selection multiple times
       if (selectionTimeout) {
         clearTimeout(selectionTimeout);
       }
       
-      // Set new timeout, ensure tooltip created after selection completes
       selectionTimeout = setTimeout(() => {
         try {
-          const selection = window.getSelection();
-          if (!selection) {
-            console.warn('Unable to get text selection');
+          // Check if selection still exists
+          if (!selection || selection.rangeCount === 0) {
+            console.warn('Selection has disappeared');
+            isCreatingFixedTooltip = false;
             return;
           }
           
-          if (selection.toString().trim().length > 0) {
-            // Get the element to extract font info from
-            let element = event.target;
-            if (!element) {
-              console.warn('Unable to get selection event target element');
-              return;
-            }
-            
+          const range = selection.getRangeAt(0);
+          if (!range) {
+            console.warn('Unable to get selection range');
+            isCreatingFixedTooltip = false;
+            return;
+          }
+          
+          // Prioritize using range to create fixed tooltip
+          // Try multiple times to ensure correct rectangle data
+          let rects = [];
+          try {
+            rects = range.getClientRects();
+            console.log('Selection range rectangle data:', rects.length > 0 ? `Got ${rects.length} rectangles` : 'No rectangles found');
+          } catch (err) {
+            console.warn('Error getting selection range rectangles:', err);
+          }
+          
+          // Get target element
+          let element = null;
+          
+          // Prioritize using common ancestor of selection
+          if (range.commonAncestorContainer) {
+            element = range.commonAncestorContainer;
+            // If text node, get parent element
             if (element.nodeType === Node.TEXT_NODE) {
               element = element.parentElement;
             }
-            
-            // Only proceed if we have a valid element
-            if (element && element.nodeType === Node.ELEMENT_NODE) {
-              // Ensure all existing fixed tooltips are removed
-              // and position records are cleared
-              removeAllFixedTooltips();
-              
-              // Create new tooltip after a short delay to ensure DOM is fully cleaned
-              setTimeout(() => {
-                try {
-                  // Create new fixed tooltip
-                  createFixedTooltip(event, element);
-                } catch (err) {
-                  console.error('Error creating delayed tooltip:', err);
-                }
-              }, 50);
+          } 
+          // If no common ancestor, try using event target
+          else if (event && event.target) {
+            element = event.target;
+            // If text node, get parent element
+            if (element.nodeType === Node.TEXT_NODE) {
+              element = element.parentElement;
             }
           }
-        } catch (err) {
-          console.error('Error handling text selection event:', err);
-          // Check if it's "Extension context invalidated" error
-          if (err.message && err.message.includes("Extension context invalidated")) {
-            cleanupResources();
+          
+          // If still no element, don't create tooltip
+          if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+            console.warn('Unable to get valid element for tooltip creation');
+            isCreatingFixedTooltip = false;
+            return;
           }
+          
+          console.log(`Ready to create tooltip, element: ${element.tagName}`);
+          
+          // Safely remove existing tooltips, but ignore protected ones
+          const existingTooltips = document.querySelectorAll('.fixed-tooltip:not([data-protected="true"])');
+          for (let i = 0; i < existingTooltips.length; i++) {
+            try {
+              const t = existingTooltips[i];
+              if (t && t.parentNode) {
+                fixedTooltipPositions.delete(t.dataset.positionKey);
+                t.parentNode.removeChild(t);
+                fixedTooltips = fixedTooltips.filter(tooltip => tooltip !== t);
+              }
+            } catch (err) {
+              console.warn('Error removing existing tooltip:', err);
+            }
+          }
+          
+          // Use delay to ensure DOM update
+          setTimeout(() => {
+            try {
+              console.log('Creating new fixed tooltip');
+              // Use original event or build an event object
+              const tooltipEvent = event || {
+                target: element,
+                clientX: lastMouseX,
+                clientY: lastMouseY,
+                pageX: lastMouseX + window.pageXOffset,
+                pageY: lastMouseY + window.pageYOffset
+              };
+              
+              // Directly call creation function
+              const tooltip = createFixedTooltip(tooltipEvent, element);
+              
+              // Verify result
+              if (tooltip) {
+                console.log('✅ Tooltip created successfully');
+                
+                // Ensure tooltip stays visible
+                tooltip.style.display = 'block';
+                tooltip.style.opacity = '1';
+                
+                // Force update tooltip size and position to ensure content displays correctly
+                setTimeout(() => {
+                  if (tooltip.isConnected) {
+                    // Force browser to recalculate layout
+                    tooltip.style.width = tooltip.offsetWidth + 'px';
+                  }
+                }, 50);
+              } else {
+                console.warn('❌ Tooltip creation failed');
+              }
+              
+              // Delay resetting creation flag to give enough time for tooltip to stabilize
+              setTimeout(() => {
+                isCreatingFixedTooltip = false;
+                console.log('Tooltip creation flag reset');
+              }, 2000); // Extended to 2 seconds
+            } catch (err) {
+              console.error('Error creating tooltip:', err);
+              isCreatingFixedTooltip = false;
+            }
+          }, 10);
+        } catch (err) {
+          console.error('Error handling selection delay callback:', err);
+          isCreatingFixedTooltip = false;
         }
-      }, 100); // 100ms delay, reduce multiple triggers
+      }, 100); // Use shorter delay time
     } catch (err) {
-      console.error('Error setting text selection delay:', err);
-      // Check if it's "Extension context invalidated" error
-      if (err.message && err.message.includes("Extension context invalidated")) {
+      console.error('Error handling text selection:', err);
+      isCreatingFixedTooltip = false;
+      if (err.message && err.message.includes('Extension context invalidated')) {
         cleanupResources();
       }
     }
   }
 
   /**
-   * Check if an element contains text or is a text-containing element
-   * @param {Element} element - The element to check
-   * @returns {boolean} - True if the element contains text
+   * Check if element has text content
+   * @param {Element} element - Element to check
+   * @returns {boolean} - True if element has text content
    */
   function hasTextContent(element) {
-    // Check if element is empty
-    if (!element) {
-      debug('Element is empty', null);
+    if (!element) return false;
+    
+    // Get computed style
+    const style = window.getComputedStyle(element);
+    
+    // Check if element is visible
+    if (style.display === 'none' || style.visibility === 'hidden') {
       return false;
     }
     
-    // Extended non-text tag list - added more tags that should not display tooltips
-    const nonTextTags = [
-      'HTML', 'BODY', 'SCRIPT', 'STYLE', 'SVG', 'PATH', 'IMG', 'VIDEO', 'AUDIO', 'CANVAS', 'IFRAME', 
-      'OBJECT', 'EMBED', 'NAV', 'UL', 'OL', 'HR', 'BR', 'WBR', 'NOSCRIPT', 'INPUT', 'SELECT', 'OPTION', 
-      'OPTGROUP', 'DATALIST', 'OUTPUT', 'MENU', 'ASIDE', 'FIGURE', 'FIGCAPTION', 'MAP', 'AREA', 
-      'SOURCE', 'TRACK', 'META', 'LINK', 'BASE', 'PARAM', 'PROGRESS', 'METER', 'TIME', 'HEADER', 
-      'FOOTER', 'MAIN', 'SECTION', 'ARTICLE', 'DIALOG', 'DETAILS', 'SUMMARY', 'PICTURE', 'TEMPLATE'
-    ];
-    
-    if (nonTextTags.includes(element.tagName)) {
-      debug('Non-text tag', element.tagName);
-      return false;
-    }
-    
-    // Get element text content (remove spaces)
-    const rawText = element.textContent || '';
-    const text = rawText.trim();
-    
-    // Check element computed style
-    const style = getComputedStyle(element);
-    
-    // Check if element is hidden
-    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
-      debug('Hidden element', element.tagName);
-      return false;
-    }
-    
-    // Check if element is blank (e.g., only spaces, newlines, etc.)
-    if (!/\S/.test(rawText)) {
-      debug('Blank element', element.tagName);
-      return false;
-    }
-    
-    // Check element dimensions - increased minimum size requirement
-    const rect = element.getBoundingClientRect();
-    if (rect.width < 10 || rect.height < 10) {
-      debug('Element too small', `${element.tagName} ${rect.width}x${rect.height}`);
-      return false;
-    }
-    
-    // Check if element is in visible area of page
-    if (rect.top > window.innerHeight || rect.bottom < 0 || 
-        rect.left > window.innerWidth || rect.right < 0) {
-      debug('Element outside visible area', element.tagName);
-      return false;
-    }
-    
-    // Check directly text child nodes (not including text in child elements)
-    let hasDirectTextNode = false;
-    let directTextLength = 0;
-    
-    for (let i = 0; i < element.childNodes.length; i++) {
-      const node = element.childNodes[i];
-      if (node.nodeType === Node.TEXT_NODE) {
-        const nodeText = node.textContent.trim();
-        if (nodeText.length > 0) {
-          hasDirectTextNode = true;
-          directTextLength += nodeText.length;
-        }
-      }
-    }
-    
-    // More strict text length requirement
-    if (text.length < 3) {
-      debug('Text too short', `${element.tagName}: ${text}`);
-      return false;
-    }
-    
-    // Check if it only contains special characters or punctuation
-    const punctuationOnlyPattern = /^[\s\.,;:!?()[\]{}'"\/\\-_+=<>|&$#@%^*]+$/;
-    if (punctuationOnlyPattern.test(text)) {
-      debug('Contains only special characters', `${element.tagName}: ${text}`);
-      return false;
-    }
-    
-    // Check if it is meaningful text content
-    // Must contain letters, numbers, or Chinese, and at least 3 characters
-    const meaningfulTextPattern = /[a-zA-Z0-9\u4e00-\u9fa5]{3,}/;
-    if (!meaningfulTextPattern.test(text)) {
-      debug('Does not contain meaningful text', `${element.tagName}: ${text}`);
-      return false;
-    }
-    
-    // Check if it is a clear text element
-    const textElements = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE'];
-    if (textElements.includes(element.tagName) && directTextLength >= 3) {
-      debug('Clear text element', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check inline text elements
-    const inlineTextElements = ['SPAN', 'A', 'STRONG', 'EM', 'B', 'I', 'U', 'SUP', 'SUB', 'MARK', 'SMALL', 'DEL', 'INS', 'Q', 'ABBR', 'CITE', 'DFN', 'LABEL'];
-    if (inlineTextElements.includes(element.tagName) && directTextLength >= 3) {
-      debug('Inline text element', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check table cell elements
-    if (['TD', 'TH'].includes(element.tagName) && directTextLength >= 3) {
-      debug('Table cell text', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check list elements
-    if (['LI', 'DT', 'DD'].includes(element.tagName) && directTextLength >= 3) {
-      debug('List element text', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Check form elements
-    if (['BUTTON', 'TEXTAREA'].includes(element.tagName) && directTextLength >= 3) {
-      debug('Form element text', `${element.tagName}: ${directTextLength} characters`);
-      return true;
-    }
-    
-    // Additional check for DIV elements - stricter requirements
-    if (element.tagName === 'DIV') {
-      // Only accept DIVs with a lot of text (at least 20 characters)
-      if (directTextLength >= 20) {
-        debug('Text-rich DIV', `Direct text length: ${directTextLength} characters`);
-        return true;
-      }
-      
-      // Check DIV's style to see if it looks like a text container
-      if (style.fontFamily !== 'inherit' && style.textAlign !== 'start' && directTextLength >= 5) {
-        debug('Style similar to text container DIV', `${element.tagName}: ${directTextLength} characters`);
-        return true;
-      }
-      
-      debug('Regular DIV does not meet text requirements', `Direct text length: ${directTextLength} characters`);
-      return false;
-    }
-    
-    // By default, if it doesn't meet any of the above conditions, it's not considered a text element
-    debug('Does not meet any text element conditions', element.tagName);
-    return false;
+    // Get text content
+    const text = element.textContent || '';
+    return text.trim().length > 0;
   }
 
   /**
-   * Handle mouseover event 
-   * @param {Event} event - The mouse event
+   * Handle mouse over events
+   * @param {MouseEvent} event - Mouse event
    */
   function handleMouseOver(event) {
     if (!isActive || !tooltip) return;
     
+    // If creating fixed tooltip, ignore mouse hover events
+    if (isCreatingFixedTooltip) return;
+    
     try {
       let targetElement = event.target;
       
-      // If it's a text node, use its parent element
+      // If text node, get parent element
       if (targetElement.nodeType === Node.TEXT_NODE) {
         targetElement = targetElement.parentElement;
       }
       
-      // If the cursor is at the edge of the window or in a blank area, don't display the tooltip
-      const mouseX = event.clientX;
-      const mouseY = event.clientY;
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
-      
-      // Check if the mouse is at the edge of the window
-      const edgeThreshold = 15; // Edge threshold (pixels)
-      if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
-          mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
-        if (currentTarget) {
-          debug('Mouse at window edge', `${mouseX},${mouseY}`);
-          currentTarget = null;
-          hideTooltip(tooltip);
-        }
-        return;
-      }
-      
-      // Check if the target element is the root or body element of the document (possibly a blank area)
-      if (targetElement === document.documentElement || targetElement === document.body) {
-        if (currentTarget) {
-          debug('Mouse over root element', targetElement.tagName);
-          currentTarget = null;
-          hideTooltip(tooltip);
-        }
-        return;
-      }
-      
-      // Check if it's a blank area (e.g., blank part of a large container element)
-      let elementUnderPoint = null;
-      try {
-        elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
-      } catch (err) {
-        console.warn('Unable to get element under mouse position:', err);
-      }
-      
-      if (elementUnderPoint !== targetElement && 
-          (elementUnderPoint === document.documentElement || elementUnderPoint === document.body)) {
-        if (currentTarget) {
-          debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
-          currentTarget = null;
-          hideTooltip(tooltip);
-        }
-        return;
-      }
-      
-      // Only process element nodes containing text
-      if (targetElement && targetElement.nodeType === Node.ELEMENT_NODE && hasTextContent(targetElement)) {
-        debug('Mouse hovering over text element', targetElement.tagName);
-        currentTarget = targetElement;
+      // Only proceed if we have a valid element
+      if (targetElement && targetElement.nodeType === Node.ELEMENT_NODE) {
+        // Update tooltip content
+        populateTooltipContent(tooltip, targetElement);
         
-        // Use requestAnimationFrame to ensure smooth display
-        requestUpdate(() => {
-          if (tooltip) { // Ensure tooltip still exists
-            showTooltip(event, tooltip);
-          }
-        });
-      } else {
-        // Not a text element, hide tooltip
-        debug('Mouse hovering over non-text element', targetElement?.tagName);
-        currentTarget = null;
-        if (tooltip) { // Ensure tooltip still exists
-          hideTooltip(tooltip);
-        }
+        // Show tooltip
+        tooltip.style.display = 'block';
+        tooltip.style.opacity = '1';
       }
     } catch (err) {
-      console.error('Error handling mouse hover event:', err);
+      console.error('Error handling mouse over:', err);
+      if (err.message && err.message.includes('Extension context invalidated')) {
+        cleanupResources();
+      }
     }
   }
 
   /**
-   * Handle mouseout event
-   * @param {Event} event - The mouse event
+   * Handle mouse out events
+   * @param {MouseEvent} event - Mouse event
    */
   function handleMouseOut(event) {
     if (!isActive) return;
+    
+    // If creating fixed tooltip, ignore mouse out events
+    if (isCreatingFixedTooltip) return;
     
     // Check if really leaving the element (not entering a child element)
     let relatedTarget = event.relatedTarget;
     while (relatedTarget) {
       if (relatedTarget === event.target) {
-        // If the related target is a child of the current target, do nothing
         return;
       }
       relatedTarget = relatedTarget.parentElement;
     }
     
-    // Really left the element
-    currentTarget = null;
-    hideTooltip(tooltip);
+    try {
+      if (tooltip) {
+        tooltip.style.display = 'none';
+        tooltip.style.opacity = '0';
+      }
+    } catch (err) {
+      console.error('Error handling mouse out:', err);
+      if (err.message && err.message.includes('Extension context invalidated')) {
+        cleanupResources();
+      }
+    }
   }
 
   /**
-   * Handle mousemove event using requestAnimationFrame
-   * @param {Event} event - The mouse event
+   * Handle mouse move events
+   * @param {MouseEvent} event - Mouse event
    */
   function handleMouseMove(event) {
     if (!isActive || !tooltip) return;
     
+    // If creating fixed tooltip, ignore mouse move events
+    if (isCreatingFixedTooltip) return;
+    
     try {
-      let targetElement = event.target;
+      // Update last known mouse position
+      lastMouseX = event.clientX;
+      lastMouseY = event.clientY;
       
-      // If it's a text node, use its parent element
-      if (targetElement.nodeType === Node.TEXT_NODE) {
-        targetElement = targetElement.parentElement;
-      }
-      
-      // If the cursor is at the edge of the window or in a blank area, hide the tooltip
-      const mouseX = event.clientX;
-      const mouseY = event.clientY;
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
-      
-      // Check if the mouse is at the edge of the window
-      const edgeThreshold = 15; // Edge threshold (pixels)
-      if (mouseX < edgeThreshold || mouseX > windowWidth - edgeThreshold || 
-          mouseY < edgeThreshold || mouseY > windowHeight - edgeThreshold) {
-        if (currentTarget) {
-          debug('Mouse at window edge', `${mouseX},${mouseY}`);
-          currentTarget = null;
-          hideTooltip(tooltip);
-        }
-        return;
-      }
-      
-      // Check if the target element is the root or body element of the document (possibly a blank area)
-      if (targetElement === document.documentElement || targetElement === document.body) {
-        if (currentTarget) {
-          debug('Mouse over root element', targetElement.tagName);
-          currentTarget = null;
-          hideTooltip(tooltip);
-        }
-        return;
-      }
-      
-      // Check if it's a blank area (e.g., blank part of a large container element)
-      let elementUnderPoint = null;
-      try {
-        elementUnderPoint = document.elementFromPoint(mouseX, mouseY);
-      } catch (err) {
-        console.warn('Unable to get element under mouse position:', err);
-      }
-      
-      if (elementUnderPoint !== targetElement && 
-          (elementUnderPoint === document.documentElement || elementUnderPoint === document.body)) {
-        if (currentTarget) {
-          debug('Mouse in blank area', `${elementUnderPoint?.tagName} vs ${targetElement.tagName}`);
-          currentTarget = null;
-          hideTooltip(tooltip);
-        }
-        return;
-      }
-      
-      // Ensure there is a valid element and it contains text
-      if (targetElement && targetElement.nodeType === Node.ELEMENT_NODE && hasTextContent(targetElement)) {
-        // Update current target
-        if (currentTarget !== targetElement) {
-          debug('Set new target element', targetElement.tagName);
-          currentTarget = targetElement;
-        }
-        
-        // Use requestAnimationFrame to ensure smooth animation
-        requestUpdate(() => {
-          if (tooltip) { // Ensure tooltip still exists
-            showTooltip(event, tooltip);
-          }
-        });
-      } else if (currentTarget) {
-        // If not on text and there was a target, hide tooltip
-        debug('Mouse not on text', targetElement?.tagName);
-        currentTarget = null;
-        if (tooltip) { // Ensure tooltip still exists
-          hideTooltip(tooltip);
-        }
-      }
+      // Update tooltip position
+      updateTooltipPosition(tooltip, event.pageX, event.pageY);
     } catch (err) {
-      console.error('Error handling mouse movement:', err);
+      console.error('Error handling mouse move:', err);
+      if (err.message && err.message.includes('Extension context invalidated')) {
+        cleanupResources();
+      }
     }
   }
 
@@ -1551,71 +1583,19 @@
     document.removeEventListener('mousemove', handleMouseMove);
   }
 
-  // Set up message listener for extension communication
-  try {
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      try {
-        // Ensure request object exists
-        if (!request) {
-          console.warn('Received invalid message request');
-          sendResponse({ success: false, error: 'Invalid request' });
-          return true;
-        }
-        
-        // Check if extension running in a valid DOM context
-        if (!document || !document.documentElement) {
-          console.warn('Extension running in invalid DOM context, cannot process messages');
-          sendResponse({ success: false, error: 'Invalid DOM context' });
-          return true;
-        }
-        
-        // Check request action property
-        if (!request.action) {
-          console.warn('Message request missing action property');
-          sendResponse({ success: false, error: 'Missing action property' });
-          return true;
-        }
-        
-        if (request.action === TOGGLE_ACTION) {
-          toggleExtension();
-          sendResponse({ success: true });
-        } else if (request.action === 'checkContentScriptLoaded') {
-          sendResponse({ loaded: true });
-        } else if (request.action === 'checkExtensionStatus') {
-          // Return the current activation state of the extension
-          sendResponse({ isActive: isActive });
-        } else {
-          // Unknown action
-          console.warn(`Received unknown action: ${request.action}`);
-          sendResponse({ success: false, error: `Unknown action: ${request.action}` });
-        }
-      } catch (err) {
-        console.error('Error in message handler:', err);
-        // Check if extension context is invalidated
-        if (err.message && err.message.includes("Extension context invalidated")) {
-          console.warn('Extension context was invalidated in message handler');
-          cleanupResources();
-        }
-        try {
-          sendResponse({ success: false, error: err.message });
-        } catch (responseErr) {
-          console.error('Error sending response:', responseErr);
-        }
-      }
-      return true; // Keep message channel open
-    });
-  } catch (err) {
-    console.error('Setting message listener failed:', err);
-    if (err.message && err.message.includes("Extension context invalidated")) {
-      cleanupResources();
-    }
-  }
+  // Initialize extension
+  initializeDetector();
 
-  // Add debug helper to global, convenient for turning on in console
-  window.fontDetectorDebug = false;
-  window.toggleFontDetectorDebug = function() {
-    window.fontDetectorDebug = !window.fontDetectorDebug;
-    console.log(`FontDetector debug mode ${window.fontDetectorDebug ? 'enabled' : 'disabled'}`);
-    return window.fontDetectorDebug;
-  };
+  // Listen for messages from background script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === TOGGLE_ACTION) {
+      toggleExtension();
+      sendResponse({ success: true });
+    } else if (request.action === 'checkContentScriptLoaded') {
+      sendResponse({ loaded: true });
+    } else if (request.action === 'checkExtensionStatus') {
+      sendResponse({ isActive });
+    }
+    return true;
+  });
 })();
