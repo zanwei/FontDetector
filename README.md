@@ -1,8 +1,8 @@
+![FontDetector Preview](thumbnail.png)
+
 # FontDetector
 
 FontDetector is a powerful browser extension that helps designers, developers, and users quickly identify fonts and color information on web pages. With a simple mouse hover, you can instantly get font names, sizes, colors, and other style attributes of text elements.
-
-![FontDetector Preview](thumbnail.png)
 
 ## Key Features
 
