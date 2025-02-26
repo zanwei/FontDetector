@@ -61,34 +61,33 @@
    */
   function cleanupResources(force = false) {
     try {
-      // Only clean up resources if not already reinitializing or if forced
+      // 只有在未处于重新初始化状态时清理资源，或者被强制清理
       if (!isReinitializing || force) {
         isReinitializing = true;
         console.log('Cleaning up FontDetector resources...');
         
         isActive = false;
         
-        // Safe removal of tooltip
-        if (tooltip) {
+        // 安全移除tooltip容器
+        const tooltipContainer = document.getElementById('fontInfoTooltipContainer');
+        if (tooltipContainer) {
           try { 
-            if (tooltip.parentNode) {
-              tooltip.parentNode.removeChild(tooltip);
-            } else {
-              tooltip.remove(); 
-            }
+            tooltipContainer.remove();
           } catch(e) {
-            console.warn('Error removing tooltip:', e);
+            console.warn('Error removing tooltip container:', e);
+            // 尝试使用parentNode.removeChild
+            if (tooltipContainer.parentNode) {
+              tooltipContainer.parentNode.removeChild(tooltipContainer);
+            }
           }
           tooltip = null;
         }
         
-        // Clean up all fixed tooltips
-        try {
-          removeAllFixedTooltips();
-        } catch(e) {
+        // 清理所有固定tooltips
+        try { removeAllFixedTooltips(); } catch(e) {
           console.warn('Error removing fixed tooltips:', e);
           
-          // Fallback cleanup for fixed tooltips
+          // 备用清理方法
           try {
             for (let i = 0; i < fixedTooltips.length; i++) {
               try {
@@ -100,7 +99,7 @@
             }
             fixedTooltips = [];
             
-            // Also try to remove any elements with font-detector class
+            // 尝试移除所有带font-detector类的元素
             const detectorElements = document.querySelectorAll('.font-detector');
             for (let i = 0; i < detectorElements.length; i++) {
               try {
@@ -110,10 +109,21 @@
                 }
               } catch(e) {}
             }
+            
+            // 清理Shadow DOM容器
+            const tooltipContainers = document.querySelectorAll('.fixed-tooltip-container');
+            for (let i = 0; i < tooltipContainers.length; i++) {
+              try {
+                const container = tooltipContainers[i];
+                if (container && container.parentNode) {
+                  container.parentNode.removeChild(container);
+                }
+              } catch(e) {}
+            }
           } catch(e) {}
         }
         
-        // Remove all event listeners safely
+        // 安全移除所有事件监听器
         try { removeMouseListeners(); } catch(e) {
           console.warn('Error removing mouse listeners:', e);
         }
@@ -126,7 +136,7 @@
           console.warn('Error removing keydown listener:', e);
         }
         
-        // Cancel all animation frame requests
+        // 取消所有动画帧请求
         if (animationFrameId) {
           try { cancelAnimationFrame(animationFrameId); } catch(e) {
             console.warn('Error canceling animation frame:', e);
@@ -134,7 +144,7 @@
           animationFrameId = null;
         }
         
-        // Clear selection timeout
+        // 清除选择超时
         if (selectionTimeout) {
           try { clearTimeout(selectionTimeout); } catch(e) {
             console.warn('Error clearing selection timeout:', e);
@@ -142,21 +152,21 @@
           selectionTimeout = null;
         }
         
-        // Clear position set
+        // 清除位置集合
         try { fixedTooltipPositions.clear(); } catch(e) {
           console.warn('Error clearing position set:', e);
         }
         
         console.log('FontDetector resource cleanup completed');
         
-        // Allow reinitialization after delay
+        // 延迟后允许重新初始化
         setTimeout(() => {
           isReinitializing = false;
         }, 2000);
       }
     } catch (e) {
       console.error('Error occurred while cleaning up resources:', e);
-      // Reset reinitialization flag in case of error
+      // 错误发生时重置重新初始化标志
       setTimeout(() => {
         isReinitializing = false;
       }, 2000);
@@ -385,86 +395,41 @@
    * Remove all fixed tooltips
    */
   function removeAllFixedTooltips() {
-    try {
-      // Clear tracked positions
+    // 创建一个需要移除的数组副本，避免在遍历过程中修改原数组
+    const tooltipsToRemove = [...fixedTooltips];
+    
+    // 逐个清理固定tooltip
+    tooltipsToRemove.forEach(container => {
       try {
-        fixedTooltipPositions.clear();
-      } catch (err) {
-        console.warn('Error clearing fixedTooltipPositions:', err);
-      }
-      
-      // Save current tooltips array and reset
-      let tooltipsToRemove = [];
-      try {
-        tooltipsToRemove = [...fixedTooltips];
-        fixedTooltips = [];
-      } catch (err) {
-        console.warn('Error copying fixedTooltips array:', err);
-        // Fallback: try to get tooltips from DOM
-        try {
-          tooltipsToRemove = Array.from(document.querySelectorAll('.fixed-tooltip'));
-        } catch (err2) {
-          console.warn('Error getting tooltips from DOM:', err2);
-          tooltipsToRemove = [];
+        // 从DOM中移除
+        if (container && container.parentNode) {
+          container.parentNode.removeChild(container);
+        } else if (container) {
+          container.remove();
         }
-      }
-      
-      // Remove each tooltip
-      for (let i = 0; i < tooltipsToRemove.length; i++) {
-        try {
-          const t = tooltipsToRemove[i];
-          if (t) {
-            if (t.parentNode) {
-              t.parentNode.removeChild(t);
-            } else {
-              t.remove();
-            }
-          }
-        } catch (err) {
-          console.warn('Error removing fixed tooltip:', err);
+        
+        // 从保存的数组中移除
+        const index = fixedTooltips.indexOf(container);
+        if (index !== -1) {
+          fixedTooltips.splice(index, 1);
         }
-      }
-      
-      // Ensure all elements with .fixed-tooltip class are removed, in case of any missed
-      try {
-        const remainingTooltips = document.querySelectorAll('.fixed-tooltip');
-        for (let i = 0; i < remainingTooltips.length; i++) {
-          try {
-            const t = remainingTooltips[i];
-            if (t) {
-              if (t.parentNode) {
-                t.parentNode.removeChild(t);
-              } else {
-                t.remove();
-              }
-            }
-          } catch (err) {
-            console.warn('Error removing remaining tooltip:', err);
-          }
+        
+        // 如果有positionKey，从set中移除
+        if (container.dataset && container.dataset.positionKey) {
+          fixedTooltipPositions.delete(container.dataset.positionKey);
         }
       } catch (err) {
-        console.warn('Error getting remaining tooltips:', err);
+        console.warn('Error removing fixed tooltip:', err);
       }
-      
-      // Also remove any elements with font-detector class as a last resort
-      try {
-        const detectorElements = document.querySelectorAll('.font-detector:not(#fontInfoTooltip)');
-        for (let i = 0; i < detectorElements.length; i++) {
-          try {
-            const el = detectorElements[i];
-            if (el && el.parentNode) {
-              el.parentNode.removeChild(el);
-            }
-          } catch (err) {
-            console.warn('Error removing detector element:', err);
-          }
-        }
-      } catch (err) {
-        console.warn('Error getting detector elements:', err);
-      }
-    } catch (err) {
-      console.error('Error removing all fixed tooltips:', err);
-    }
+    });
+    
+    // 清空数组
+    fixedTooltips = [];
+    
+    // 清空位置集合
+    fixedTooltipPositions.clear();
+    
+    console.log('All fixed tooltips removed');
   }
 
   /**
@@ -633,56 +598,158 @@
         }
       }
       
-      const tooltip = document.createElement('div'); 
-      tooltip.classList.add('font-detector');
-      tooltip.setAttribute('id', 'fontInfoTooltip');
-      tooltip.style.position = 'fixed'; // Use fixed positioning
-      tooltip.style.display = 'none';
-      tooltip.style.zIndex = '2147483647'; // Highest z-index
-      tooltip.style.pointerEvents = 'none'; // Don't block mouse events
+      // 创建一个容器元素
+      const container = document.createElement('div');
+      container.setAttribute('id', 'fontInfoTooltipContainer');
+      container.classList.add('font-detector');
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.width = '0';
+      container.style.height = '0';
+      container.style.overflow = 'visible';
+      container.style.pointerEvents = 'none';
+      container.style.zIndex = '2147483647'; // Highest z-index
       
-      // 增强兼容性：设置更多保证可见性的样式
-      tooltip.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
-      tooltip.style.color = '#ffffff'; 
-      tooltip.style.padding = '16px';
-      tooltip.style.borderRadius = '12px';
-      tooltip.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
-      tooltip.style.fontSize = '14px';
-      tooltip.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      tooltip.style.width = '250px';
-      tooltip.style.maxWidth = '90vw';
-      tooltip.style.maxHeight = '80vh';
-      tooltip.style.overflow = 'auto';
-      
-      // 增强兼容性：确保能添加到DOM中
+      // 附加容器到DOM
       try {
-        // 首选添加到body
-        document.body.appendChild(tooltip);
+        document.body.appendChild(container);
       } catch (err) {
-        console.warn('Error appending tooltip to body:', err);
+        console.warn('Error appending container to body:', err);
         try {
-          // 如果添加到body失败，尝试添加到documentElement
-          document.documentElement.appendChild(tooltip);
+          document.documentElement.appendChild(container);
         } catch (err2) {
-          console.error('Failed to add tooltip to DOM:', err2);
-          
-          // 最后尝试创建一个新的container并添加
-          try {
-            const container = document.createElement('div');
-            container.style.position = 'fixed';
-            container.style.top = '0';
-            container.style.left = '0';
-            container.style.zIndex = '2147483647';
-            document.documentElement.appendChild(container);
-            container.appendChild(tooltip);
-          } catch (err3) {
-            console.error('All attempts to add tooltip failed:', err3);
-            throw new Error('Cannot create tooltip: DOM access issues');
-          }
+          console.error('Failed to add container to DOM:', err2);
+          throw new Error('Cannot create tooltip container: DOM access issues');
         }
       }
       
-      console.log('Tooltip created and added to DOM');
+      // 创建Shadow DOM
+      const shadowRoot = container.attachShadow({ mode: 'closed' });
+      
+      // 创建tooltip元素
+      const tooltip = document.createElement('div');
+      tooltip.setAttribute('id', 'fontInfoTooltip');
+      tooltip.style.display = 'none';
+      tooltip.style.position = 'absolute';
+      tooltip.style.pointerEvents = 'none';
+      
+      // 创建样式元素
+      const style = document.createElement('style');
+      style.textContent = `
+        /* 重置所有可能继承的样式 */
+        #fontInfoTooltip {
+          all: initial !important;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+          font-size: 14px !important;
+          font-weight: normal !important;
+          line-height: 1.5 !important;
+          color: #ffffff !important;
+          background-color: rgba(30, 30, 30, 0.9) !important;
+          border-radius: 12px !important;
+          padding: 16px !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+          width: 250px !important;
+          max-width: 90vw !important;
+          max-height: 80vh !important;
+          overflow: auto !important;
+          box-sizing: border-box !important;
+          text-align: left !important;
+          position: absolute !important;
+          pointer-events: none !important;
+          transform-origin: top left !important;
+          z-index: 2147483647 !important;
+          -webkit-font-smoothing: antialiased !important;
+          text-rendering: optimizeLegibility !important;
+        }
+        
+        /* 确保所有子元素样式也被重置 */
+        #fontInfoTooltip * {
+          all: revert !important;
+          box-sizing: border-box !important;
+          font-family: inherit !important;
+          color: inherit !important;
+        }
+        
+        #fontInfoTooltip div {
+          margin: 8px 0 !important;
+          padding: 0 !important;
+          font-size: 14px !important;
+          line-height: 1.5 !important;
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+        }
+        
+        #fontInfoTooltip a {
+          color: #2596FF !important;
+          text-decoration: none !important;
+          cursor: pointer !important;
+        }
+        
+        #fontInfoTooltip a:hover {
+          text-decoration: underline !important;
+        }
+        
+        #fontInfoTooltip span {
+          color: #a7a7a7 !important;
+          font-weight: normal !important;
+        }
+        
+        #fontInfoTooltip .color-preview {
+          display: inline-block !important;
+          width: 12px !important;
+          height: 12px !important;
+          border-radius: 2px !important;
+          margin-right: 5px !important;
+          border: 1px solid rgba(255, 255, 255, 0.3) !important;
+          vertical-align: middle !important;
+        }
+        
+        #fontInfoTooltip .value-with-copy {
+          display: flex !important;
+          align-items: center !important;
+        }
+        
+        #fontInfoTooltip .copy-icon {
+          margin-left: 8px !important;
+          cursor: pointer !important;
+          opacity: 0.6 !important;
+          transition: opacity 0.2s !important;
+          pointer-events: auto !important;
+        }
+        
+        #fontInfoTooltip .copy-icon:hover {
+          opacity: 1 !important;
+        }
+        
+        #fontInfoTooltip .copy-icon.copied {
+          opacity: 1 !important;
+        }
+        
+        #fontInfoTooltip .close-button {
+          position: absolute !important;
+          top: 10px !important;
+          right: 10px !important;
+          cursor: pointer !important;
+          opacity: 0.6 !important;
+          transition: opacity 0.2s !important;
+          pointer-events: auto !important;
+        }
+        
+        #fontInfoTooltip .close-button:hover {
+          opacity: 1 !important;
+        }
+      `;
+      
+      // 添加样式和tooltip到Shadow DOM
+      shadowRoot.appendChild(style);
+      shadowRoot.appendChild(tooltip);
+      
+      // 将tooltip引用保存到container上，以便后续访问
+      container.tooltip = tooltip;
+      
+      console.log('Tooltip created in Shadow DOM and added to DOM');
       return tooltip;
     } catch (err) {
       console.error('Critical error creating tooltip:', err);
@@ -716,48 +783,171 @@
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       
-      // Generate position identifier
+      // 生成位置标识符
       const positionKey = `${Math.round(rect.left)},${Math.round(rect.bottom)}`;
       
-      // Check if position already has tooltip
+      // 检查该位置是否已有固定Tooltip
       if (fixedTooltipPositions.has(positionKey)) {
         console.log('Position already has fixed tooltip, skipping creation');
         return null;
       }
       
-      // Record new position
+      // 记录新位置
       fixedTooltipPositions.add(positionKey);
       
+      // 创建固定Tooltip的容器
+      const container = document.createElement('div');
+      container.classList.add('font-detector', 'fixed-tooltip-container');
+      container.dataset.positionKey = positionKey;
+      container.style.position = 'absolute';
+      container.style.left = (window.pageXOffset + rect.left) + 'px';
+      container.style.top = (window.pageYOffset + rect.bottom + 10) + 'px';
+      container.style.zIndex = '2147483647';
+      
+      // 创建Shadow DOM
+      const shadowRoot = container.attachShadow({ mode: 'closed' });
+      
+      // 创建固定Tooltip
       const fixedTooltip = document.createElement('div');
-      fixedTooltip.classList.add('font-detector', 'fixed-tooltip');
-      fixedTooltip.dataset.positionKey = positionKey;
+      fixedTooltip.classList.add('fixed-tooltip');
       
-      // Calculate position - place below the selected text
-      fixedTooltip.style.left = (window.pageXOffset + rect.left) + 'px';
-      fixedTooltip.style.top = (window.pageYOffset + rect.bottom + 10) + 'px';
+      // 创建样式
+      const style = document.createElement('style');
+      style.textContent = `
+        .fixed-tooltip {
+          all: initial !important;
+          position: relative !important;
+          background-color: rgba(30, 30, 30, 0.9) !important;
+          color: #ffffff !important;
+          padding: 16px !important;
+          padding-right: 30px !important; /* 为关闭按钮留出空间 */
+          border-radius: 12px !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+          font-size: 14px !important;
+          line-height: 1.5 !important;
+          max-width: 300px !important;
+          box-sizing: border-box !important;
+          animation: fadeIn 0.2s ease-in-out !important;
+          -webkit-font-smoothing: antialiased !important;
+          z-index: 2147483647 !important;
+        }
+
+        /* 确保所有子元素样式也被重置 */
+        .fixed-tooltip * {
+          all: revert !important;
+          box-sizing: border-box !important;
+          font-family: inherit !important;
+          color: inherit !important;
+        }
+        
+        .fixed-tooltip div {
+          margin: 8px 0 !important;
+          padding: 0 !important;
+          font-size: 14px !important;
+          line-height: 1.5 !important;
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+        }
+        
+        .fixed-tooltip a {
+          color: #2596FF !important;
+          text-decoration: none !important;
+          cursor: pointer !important;
+        }
+        
+        .fixed-tooltip a:hover {
+          text-decoration: underline !important;
+        }
+        
+        .fixed-tooltip span {
+          color: #a7a7a7 !important;
+          font-weight: normal !important;
+        }
+        
+        .fixed-tooltip .color-preview {
+          display: inline-block !important;
+          width: 12px !important;
+          height: 12px !important;
+          border-radius: 2px !important;
+          margin-right: 5px !important;
+          border: 1px solid rgba(255, 255, 255, 0.3) !important;
+          vertical-align: middle !important;
+        }
+        
+        .fixed-tooltip .value-with-copy {
+          display: flex !important;
+          align-items: center !important;
+        }
+        
+        .fixed-tooltip .copy-icon {
+          margin-left: 8px !important;
+          cursor: pointer !important;
+          opacity: 0.6 !important;
+          transition: opacity 0.2s !important;
+          pointer-events: auto !important;
+        }
+        
+        .fixed-tooltip .copy-icon:hover {
+          opacity: 1 !important;
+        }
+        
+        .fixed-tooltip .copy-icon.copied {
+          opacity: 1 !important;
+        }
+        
+        .close-button {
+          position: absolute !important;
+          top: 10px !important;
+          right: 10px !important;
+          cursor: pointer !important;
+          opacity: 0.6 !important;
+          transition: opacity 0.2s !important;
+          pointer-events: auto !important;
+        }
+        
+        .close-button:hover {
+          opacity: 1 !important;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `;
       
-      // Fill content
+      // 添加样式到Shadow DOM
+      shadowRoot.appendChild(style);
+      shadowRoot.appendChild(fixedTooltip);
+      
+      // 填充内容
       populateTooltipContent(fixedTooltip, element);
       
-      // Add close button
+      // 添加关闭按钮
       const closeButton = document.createElement('div');
       closeButton.classList.add('close-button');
       closeButton.innerHTML = `<?xml version="1.0" encoding="UTF-8"?><svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 8L40 40" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 40L40 8" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       closeButton.addEventListener('click', () => {
-        // Remove from position set when closed
+        // 移除位置记录
         fixedTooltipPositions.delete(positionKey);
-        fixedTooltip.remove();
-        fixedTooltips = fixedTooltips.filter(t => t !== fixedTooltip);
+        // 移除整个容器
+        container.remove();
+        // 从数组中移除
+        fixedTooltips = fixedTooltips.filter(t => t !== container);
       });
       fixedTooltip.appendChild(closeButton);
       
-      document.documentElement.appendChild(fixedTooltip);
-      fixedTooltips.push(fixedTooltip);
+      // 将容器添加到DOM
+      document.documentElement.appendChild(container);
+      // 保存容器引用到数组
+      fixedTooltips.push(container);
       
+      // 返回固定Tooltip的引用
       return fixedTooltip;
     } catch (err) {
       console.error('Error creating fixed tooltip:', err);
-      // Remove from position set if error occurs
+      // 如果发生错误，移除位置记录
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
@@ -932,9 +1122,13 @@
    * @param {number} y - Y position
    */
   function updateTooltipPosition(tooltip, x, y) {
-    // Set absolute position directly for better browser compatibility
-    tooltip.style.left = `${x}px`;
-    tooltip.style.top = `${y}px`;
+    try {
+      // 直接设置位置，使用绝对坐标提高浏览器兼容性
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
+    } catch (err) {
+      console.warn('Error updating tooltip position:', err);
+    }
   }
 
   /**
@@ -954,96 +1148,93 @@
       return;
     }
     
-    // 通用处理：每个网站都应用增强的Tooltip样式和位置计算
-    
-    // If tooltip is not visible, make it visible
-    if (tooltip.style.display === 'none') {
-      // Initial content
-      populateTooltipContent(tooltip, element);
-      lastTooltipContent = tooltip.innerHTML;
-      
-      // Make visible
-      tooltip.style.display = 'block';
-      tooltip.style.opacity = '1';
-      tooltip.style.position = 'fixed'; // Use fixed position for better performance
-      
-      // 通用增强：确保Tooltip在各种网站上都可见
-      tooltip.style.zIndex = '2147483647'; // 确保最高层级
-      tooltip.style.backgroundColor = 'rgba(30, 30, 30, 0.9)'; // 更高对比度
-      tooltip.style.border = '1px solid rgba(255, 255, 255, 0.2)'; // 添加边框增强可见性
-      tooltip.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)'; // 添加阴影
-    }
-    
-    // 通用增强：为所有网站使用更合理的偏移量
-    const offsetX = 15; // 水平偏移
-    const offsetY = 15; // 垂直偏移
-    
-    // Calculate position with offsets
-    const x = event.clientX + offsetX;
-    const y = event.clientY + offsetY;
-    
-    // 通用增强：智能边界检测，防止Tooltip溢出屏幕
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    
-    // 如果会溢出右侧边缘，则向左偏移
-    let adjustedX = x;
-    if (x + tooltipRect.width > windowWidth) {
-      adjustedX = windowWidth - tooltipRect.width - 5;
-    }
-    
-    // 如果会溢出底部边缘，则向上偏移
-    let adjustedY = y;
-    if (y + tooltipRect.height > windowHeight) {
-      adjustedY = windowHeight - tooltipRect.height - 5;
-    }
-    
-    // 如果现在会溢出左侧边缘，则修正为靠左侧显示
-    if (adjustedX < 0) {
-      adjustedX = 5; // 靠左侧5px显示
-    }
-    
-    // 如果现在会溢出顶部边缘，则修正为靠顶部显示
-    if (adjustedY < 0) {
-      adjustedY = 5; // 靠顶部5px显示
-    }
-    
-    // 通用增强：确保Tooltip在任何情况下都是可见的
-    // 如果Tooltip太大，可能无法完全显示，则优先显示左上角
-    adjustedX = Math.max(5, Math.min(windowWidth - Math.min(tooltipRect.width, windowWidth/2), adjustedX));
-    adjustedY = Math.max(5, Math.min(windowHeight - Math.min(tooltipRect.height, windowHeight/2), adjustedY));
-    
-    // Only update position, not content, for better performance during movement
-    updateTooltipPosition(tooltip, adjustedX, adjustedY);
-    
-    // Update content only every 200ms
-    const now = Date.now();
-    if (!tooltip.lastContentUpdate || now - tooltip.lastContentUpdate > 200) {
-      const newContent = generateTooltipContent(element);
-      if (newContent !== lastTooltipContent) {
-        tooltip.innerHTML = newContent;
-        lastTooltipContent = newContent;
+    try {
+      // If tooltip is not visible, make it visible
+      if (tooltip.style.display === 'none') {
+        // Initial content
+        populateTooltipContent(tooltip, element);
+        lastTooltipContent = tooltip.innerHTML;
         
-        // Add font link and copy button click events after content update
-        const fontFamilyLinks = tooltip.querySelectorAll('.fontFamilyLink');
-        fontFamilyLinks.forEach(link => {
-          link.addEventListener('click', (event) => {
-            event.preventDefault();
-            chrome.runtime.sendMessage({
-              action: 'searchFontFamily',
-              fontFamily: link.getAttribute('data-font')
+        // Make visible
+        tooltip.style.display = 'block';
+        tooltip.style.opacity = '1';
+      }
+      
+      // 为所有网站使用统一的偏移量
+      const offsetX = 15; // 水平偏移
+      const offsetY = 15; // 垂直偏移
+      
+      // 计算鼠标位置相对于视口的坐标
+      const x = event.clientX + offsetX;
+      const y = event.clientY + offsetY;
+      
+      // 获取tooltip尺寸
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // 智能边界检测，防止Tooltip溢出屏幕
+      let adjustedX = x;
+      if (x + tooltipRect.width > windowWidth) {
+        adjustedX = windowWidth - tooltipRect.width - 5;
+      }
+      
+      let adjustedY = y;
+      if (y + tooltipRect.height > windowHeight) {
+        adjustedY = windowHeight - tooltipRect.height - 5;
+      }
+      
+      // 如果会溢出左侧边缘，则修正为靠左侧显示
+      if (adjustedX < 0) {
+        adjustedX = 5;
+      }
+      
+      // 如果会溢出顶部边缘，则修正为靠顶部显示
+      if (adjustedY < 0) {
+        adjustedY = 5;
+      }
+      
+      // 确保Tooltip在任何情况下都是可见的
+      adjustedX = Math.max(5, Math.min(windowWidth - Math.min(tooltipRect.width, windowWidth/2), adjustedX));
+      adjustedY = Math.max(5, Math.min(windowHeight - Math.min(tooltipRect.height, windowHeight/2), adjustedY));
+      
+      // 更新位置
+      updateTooltipPosition(tooltip, adjustedX, adjustedY);
+      
+      // 限制内容更新频率，每200ms更新一次
+      const now = Date.now();
+      if (!tooltip.lastContentUpdate || now - tooltip.lastContentUpdate > 200) {
+        const newContent = generateTooltipContent(element);
+        if (newContent !== lastTooltipContent) {
+          tooltip.innerHTML = newContent;
+          lastTooltipContent = newContent;
+          
+          // 添加字体链接和复制按钮的点击事件
+          const fontFamilyLinks = tooltip.querySelectorAll('.fontFamilyLink');
+          fontFamilyLinks.forEach(link => {
+            link.addEventListener('click', (event) => {
+              event.preventDefault();
+              chrome.runtime.sendMessage({
+                action: 'searchFontFamily',
+                fontFamily: link.getAttribute('data-font')
+              });
             });
           });
-        });
-        
-        // Add copy icon click event
-        const copyIcons = tooltip.querySelectorAll('.copy-icon');
-        copyIcons.forEach(icon => {
-          icon.addEventListener('click', handleCopyClick);
-        });
+          
+          // 添加复制图标的点击事件
+          const copyIcons = tooltip.querySelectorAll('.copy-icon');
+          copyIcons.forEach(icon => {
+            icon.addEventListener('click', handleCopyClick);
+          });
+        }
+        tooltip.lastContentUpdate = now;
       }
-      tooltip.lastContentUpdate = now;
+    } catch (err) {
+      console.error('Error showing tooltip:', err);
+      try {
+        // 失败时尝试隐藏tooltip以防止显示错误状态
+        hideTooltip(tooltip);
+      } catch (e) {}
     }
   }
 
