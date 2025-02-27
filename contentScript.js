@@ -594,6 +594,14 @@
     // const fontImport = "@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');";
 
     const css = `
+      @font-face {
+        font-family: 'Satoshi';
+        src: url('chrome-extension://${chrome.runtime.id}/Satoshi-Medium.otf') format('opentype');
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+      }
+
       .font-detector {
         color: #A8A8A8;
         z-index: 2147483647 !important;
@@ -606,7 +614,7 @@
       #fontInfoTooltip, .fixed-tooltip {
         border: 1px solid #2F2F2F;
         background-color: rgba(30, 30, 30, 0.85);  
-        font-family: Arial, sans-serif; /* Use system font instead of Poppins */
+        font-family: 'Satoshi', Arial, sans-serif; /* Use local Satoshi font with fallbacks */
         padding: 16px 16px;
         border-radius: 16px;
         word-wrap: break-word;
@@ -644,6 +652,7 @@
         font-size: 12px; /* Title font size */
         margin-bottom: 6px;
         gap: 2px;
+        font-family: 'Satoshi', Arial, sans-serif; /* Ensure child elements use Satoshi font */
       }
     
       #fontInfoTooltip div span, .fixed-tooltip div span {
@@ -651,11 +660,13 @@
         font-size: 14px; /* Content font size */
         margin-left: 0px; /* Remove spacing between title and content */
         font-weight: 500; /* Medium font weight for content */
+        font-family: 'Satoshi', Arial, sans-serif; /* Ensure span elements use Satoshi font */
       }
 
       #fontInfoTooltip a, .fixed-tooltip a {
         text-decoration: none;
         color: inherit;
+        font-family: 'Satoshi', Arial, sans-serif; /* Ensure links use Satoshi font */
       }
 
       .color-preview {
@@ -716,6 +727,7 @@
         background-color: transparent;
         border-radius: 4px;
         transition: background-color 0.2s;
+        font-family: 'Satoshi', Arial, sans-serif; /* Ensure copy icon uses Satoshi font */
       }
 
       .copy-icon:hover {
