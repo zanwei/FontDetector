@@ -431,7 +431,7 @@ function injectCSS() {
       display: flex;
       flex-direction: column; /* Vertical arrangement of title and content */
       color: #A8A8A8;
-      font-size: 12px; /* Title font size */
+      font-size: 13px; /* Title font size */
       margin-bottom: 6px;
       gap: 2px;
     }
