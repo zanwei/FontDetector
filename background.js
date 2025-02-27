@@ -102,7 +102,7 @@ async function toggleExtension(tab) {
         url.startsWith('devtools:') ||
         !url.startsWith('http')) {
       console.log(`Cannot toggle extension on unsupported URL: ${url}`);
-      alert('FontDetector cannot be used on this page. Please use it on regular web pages.');
+      alert('FontDetector does not support usage on this page.');
       return;
     }
   }
@@ -129,7 +129,7 @@ async function toggleExtension(tab) {
       });
     } catch (err) {
       console.warn('Cannot toggle extension:', err.message);
-      alert('FontDetector cannot run on this page, possibly because it is an error page or restricted page.');
+      alert('FontDetector cannot run on this page (error or restricted page).');
       return;
     }
     
@@ -150,10 +150,10 @@ async function toggleExtension(tab) {
           err.message.includes('cannot access a chrome') ||
           err.message.includes('cannot be scripted due to'))) {
         console.log('Cannot inject script on error or restricted page:', err.message);
-        alert('FontDetector cannot run on this page, possibly because it is an error page or restricted page.');
+        alert('FontDetector cannot run on this page (error or restricted page).');
         return;
       }
-      // For other errors, continue throwing
+      // For other errors, continue to throw
       throw err;
     }
 
@@ -162,14 +162,6 @@ async function toggleExtension(tab) {
 
     // Store the current activation state of the extension (assuming it will toggle)
     let isActivating = true;
-
-    // Check page status before sending message
-    try {
-      await chrome.tabs.get(tab.id);
-    } catch (err) {
-      console.warn('Tab no longer exists:', err);
-      return;
-    }
 
     // Send message to content script
     await safeExecute(async () => {
@@ -328,7 +320,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     return;
   }
   
-  // Ensure page is fully loaded and URL is operable
+  // Ensure page is fully loaded and URL is one we can operate on
   if (changeInfo.status === 'complete' && tab.url) {
     // Skip unsupported URL schemes and error pages
     const url = tab.url.toLowerCase();
@@ -356,13 +348,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           return;
         }
         
-        // Ignore out-of-date pages
+        // Ignore error pages
         if (currentTab.status === 'error' || !currentTab.url.startsWith('http')) {
           console.log('Skipping error page or non-http page');
           return;
         }
         
-        // Safe execute content script injection
+        // Safely execute content script injection
         safeExecute(async () => {
           try {
             // Verify tab still exists before proceeding
@@ -386,7 +378,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
               }
             }
           } catch (err) {
-            // Handle "Frame with ID 0 is showing error page" error
+            // Handle "Frame with ID 0 is showing error page" errors
             if (err.message && (
                 err.message.includes('showing error page') || 
                 err.message.includes('cannot access a chrome') ||
