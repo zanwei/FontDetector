@@ -76,7 +76,7 @@ async function safeExecute(fn, ...args) {
       return null; // Return null instead of throwing for this specific error
     }
     
-    console.error(`Error executing ${fn.name}:`, error);
+    console.error('Error executing ' + fn.name + ':', error);
     throw error;
   }
 }
@@ -135,7 +135,7 @@ async function toggleExtension(tab) {
     
     if (!canExecute) return;
 
-    // 检查当前扩展状态，以确定是激活还是停用操作
+    // Check current extension status to determine activation or deactivation
     let currentStatus = false;
     
     try {
@@ -143,7 +143,7 @@ async function toggleExtension(tab) {
         chrome.tabs.sendMessage(tab.id, { action: 'checkExtensionStatus' }, (response) => {
           if (chrome.runtime.lastError) {
             console.warn('Error checking extension status:', chrome.runtime.lastError.message);
-            resolve(false); // 如果出错，假设当前为非激活状态
+            resolve(false); // If error occurs, assume inactive state
           } else if (response && response.isActive !== undefined) {
             resolve(response.isActive);
           } else {
@@ -153,14 +153,14 @@ async function toggleExtension(tab) {
       });
     } catch (err) {
       console.warn('Error determining current extension status:', err);
-      currentStatus = false; // 如果出错，假设为非激活状态
+      currentStatus = false; // If error occurs, assume inactive state
     }
     
-    // 确定操作后状态：当前为false，操作后为true（激活）；当前为true，操作后为false（停用）
+    // Determine post-operation status: current false -> true (activate); current true -> false (deactivate)
     const willBeActive = !currentStatus;
     console.log(`Extension will be ${willBeActive ? 'activated' : 'deactivated'}`);
     
-    // 提前更新图标，提高用户体验的响应性
+    // Update icon early to improve user experience responsiveness
     chrome.action.setIcon({ 
       path: {
         "128": willBeActive ? "icon-open.png" : "icon.png"
@@ -203,7 +203,7 @@ async function toggleExtension(tab) {
             extensionContextValid = false;
           }
           
-          // 恢复图标状态，因为操作失败
+          // Restore icon state due to operation failure
           chrome.action.setIcon({ 
             path: {
               "128": currentStatus ? "icon-open.png" : "icon.png"
@@ -215,14 +215,14 @@ async function toggleExtension(tab) {
       });
     });
 
-    // 后续验证扩展状态并最终确认图标
+    // Subsequent verification of extension status and final icon confirmation
     setTimeout(() => {
       safeExecute(async () => {
         chrome.tabs.sendMessage(tab.id, { action: 'checkExtensionStatus' }, (response) => {
           if (chrome.runtime.lastError) {
             console.warn('Error verifying extension status:', chrome.runtime.lastError.message);
           } else if (response && response.isActive !== undefined) {
-            // 根据实际状态设置图标
+            // Set icon based on actual status
             const isActive = response.isActive;
             chrome.action.setIcon({ 
               path: {
@@ -233,7 +233,7 @@ async function toggleExtension(tab) {
           }
         });
       });
-    }, 300); // 给予足够的时间让contentScript完成状态切换
+    }, 300); // Allow enough time for contentScript to complete state transition
   } catch (error) {
     console.error('Exception while executing script or sending message:', error?.message || error);
   }

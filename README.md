@@ -7,7 +7,9 @@ FontDetector is a powerful browser extension that helps designers, developers, a
 ## Key Features
 
 - **Real-time Detection**: Hover over any text element to view font information
+- **Mini Tooltip**: A lightweight tooltip follows your cursor, indicating when text selection is available
 - **Fixed Tooltips**: Create fixed information tooltips by selecting text for comparing different elements
+- **Long Press Support**: Press and hold to trigger text selection mode
 - **Color Information**: Display text colors in HEX, LCH, and HCL formats
 - **One-click Copy**: Easily copy font information and color values
 - **Font Search**: Search for detected fonts directly to learn more
@@ -30,14 +32,21 @@ FontDetector is a powerful browser extension that helps designers, developers, a
 
 ### Basic Usage
 1. Click the FontDetector icon in the toolbar to activate the extension (icon turns blue to indicate activation)
-2. Hover your mouse over any text element on the webpage to view its font information
-3. Click the extension icon again or press ESC key to deactivate the extension
+2. Hover your mouse over any text element on the webpage to see the mini tooltip
+3. Select text to create a fixed tooltip with detailed font information
+4. Click the extension icon again or press ESC key to deactivate the extension
 
-## Creating Fixed Tooltips
-1. With the extension active, select a piece of text
+### Creating Fixed Tooltips
+1. With the extension active, select a piece of text or use long press
 2. After selection, a fixed information tooltip will be automatically created
 3. Repeat this operation to create multiple fixed tooltips for comparison
 4. Click the close button in the top-right corner of a tooltip to close it
+
+### Using Long Press
+1. Press and hold your mouse button on any text element
+2. After about 300ms, the mini tooltip will hide, indicating long press mode
+3. Release the mouse button to create a fixed tooltip
+4. For quick clicks (less than 300ms), the mini tooltip remains visible
 
 ### Copying Information
 - Click the copy icon in the tooltip to copy the corresponding value to clipboard
