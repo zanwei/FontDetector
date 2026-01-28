@@ -1,0 +1,78 @@
+{
+  "appName": {
+    "message": "FontDetector",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "懸停在文字元素上顯示字體資訊。",
+    "description": "The description of the extension"
+  },
+  "fontFamily": {
+    "message": "字體系列",
+    "description": "Label for font family"
+  },
+  "fontWeight": {
+    "message": "字體粗細",
+    "description": "Label for font weight"
+  },
+  "fontSize": {
+    "message": "字體大小",
+    "description": "Label for font size"
+  },
+  "lineHeight": {
+    "message": "行高",
+    "description": "Label for line height"
+  },
+  "letterSpacing": {
+    "message": "字間距",
+    "description": "Label for letter spacing"
+  },
+  "textAlign": {
+    "message": "文字對齊",
+    "description": "Label for text alignment"
+  },
+  "color": {
+    "message": "顏色",
+    "description": "Label for color"
+  },
+  "colorHex": {
+    "message": "十六進位",
+    "description": "Label for HEX color format"
+  },
+  "colorLCH": {
+    "message": "顏色[LCH]",
+    "description": "Label for LCH color format"
+  },
+  "colorHCL": {
+    "message": "顏色[HCL]",
+    "description": "Label for HCL color format"
+  },
+  "copied": {
+    "message": "已複製",
+    "description": "Text shown after copying"
+  },
+  "noFontFound": {
+    "message": "沒有可用的字體資訊",
+    "description": "Message when no font information is found"
+  },
+  "clickToCopy": {
+    "message": "點擊複製",
+    "description": "Tooltip for copy button"
+  },
+  "selectToViewFontInfo": {
+    "message": "選取文字查看字體資訊",
+    "description": "Mini tooltip hint text"
+  },
+  "downloadFont": {
+    "message": "下載字體",
+    "description": "Label for download font action"
+  },
+  "downloadStarted": {
+    "message": "下載中...",
+    "description": "Text shown when font download starts"
+  },
+  "searchingDownload": {
+    "message": "搜尋下載中...",
+    "description": "Text shown while searching for font download"
+  }
+}

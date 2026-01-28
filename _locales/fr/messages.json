@@ -1,0 +1,78 @@
+{
+  "appName": {
+    "message": "FontDetector",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "Affiche les informations de police au survol des éléments de texte.",
+    "description": "The description of the extension"
+  },
+  "fontFamily": {
+    "message": "Famille de police",
+    "description": "Label for font family"
+  },
+  "fontWeight": {
+    "message": "Graisse",
+    "description": "Label for font weight"
+  },
+  "fontSize": {
+    "message": "Taille de police",
+    "description": "Label for font size"
+  },
+  "lineHeight": {
+    "message": "Hauteur de ligne",
+    "description": "Label for line height"
+  },
+  "letterSpacing": {
+    "message": "Espacement des lettres",
+    "description": "Label for letter spacing"
+  },
+  "textAlign": {
+    "message": "Alignement du texte",
+    "description": "Label for text alignment"
+  },
+  "color": {
+    "message": "Couleur",
+    "description": "Label for color"
+  },
+  "colorHex": {
+    "message": "Hexadécimal",
+    "description": "Label for HEX color format"
+  },
+  "colorLCH": {
+    "message": "Couleur[LCH]",
+    "description": "Label for LCH color format"
+  },
+  "colorHCL": {
+    "message": "Couleur[HCL]",
+    "description": "Label for HCL color format"
+  },
+  "copied": {
+    "message": "Copié",
+    "description": "Text shown after copying"
+  },
+  "noFontFound": {
+    "message": "Aucune information de police disponible",
+    "description": "Message when no font information is found"
+  },
+  "clickToCopy": {
+    "message": "Cliquer pour copier",
+    "description": "Tooltip for copy button"
+  },
+  "selectToViewFontInfo": {
+    "message": "Sélectionnez pour voir les infos de police",
+    "description": "Mini tooltip hint text"
+  },
+  "downloadFont": {
+    "message": "Télécharger la police",
+    "description": "Label for download font action"
+  },
+  "downloadStarted": {
+    "message": "Téléchargement...",
+    "description": "Text shown when font download starts"
+  },
+  "searchingDownload": {
+    "message": "Recherche du téléchargement...",
+    "description": "Text shown while searching for font download"
+  }
+}

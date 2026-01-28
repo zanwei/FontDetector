@@ -1,0 +1,78 @@
+{
+  "appName": {
+    "message": "FontDetector",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "Muestra información de la fuente al pasar el cursor sobre elementos de texto.",
+    "description": "The description of the extension"
+  },
+  "fontFamily": {
+    "message": "Familia de fuentes",
+    "description": "Label for font family"
+  },
+  "fontWeight": {
+    "message": "Peso de la fuente",
+    "description": "Label for font weight"
+  },
+  "fontSize": {
+    "message": "Tamaño de la fuente",
+    "description": "Label for font size"
+  },
+  "lineHeight": {
+    "message": "Altura de línea",
+    "description": "Label for line height"
+  },
+  "letterSpacing": {
+    "message": "Espaciado entre letras",
+    "description": "Label for letter spacing"
+  },
+  "textAlign": {
+    "message": "Alineación del texto",
+    "description": "Label for text alignment"
+  },
+  "color": {
+    "message": "Color",
+    "description": "Label for color"
+  },
+  "colorHex": {
+    "message": "Hex",
+    "description": "Label for HEX color format"
+  },
+  "colorLCH": {
+    "message": "Color[LCH]",
+    "description": "Label for LCH color format"
+  },
+  "colorHCL": {
+    "message": "Color[HCL]",
+    "description": "Label for HCL color format"
+  },
+  "copied": {
+    "message": "Copiado",
+    "description": "Text shown after copying"
+  },
+  "noFontFound": {
+    "message": "No hay información de fuente disponible",
+    "description": "Message when no font information is found"
+  },
+  "clickToCopy": {
+    "message": "Haz clic para copiar",
+    "description": "Tooltip for copy button"
+  },
+  "selectToViewFontInfo": {
+    "message": "Selecciona para ver información de la fuente",
+    "description": "Mini tooltip hint text"
+  },
+  "downloadFont": {
+    "message": "Descargar fuente",
+    "description": "Label for download font action"
+  },
+  "downloadStarted": {
+    "message": "Descargando...",
+    "description": "Text shown when font download starts"
+  },
+  "searchingDownload": {
+    "message": "Buscando descarga...",
+    "description": "Text shown while searching for font download"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "appName": {
+    "message": "FontDetector",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "Exibe informações de fonte ao passar o mouse sobre elementos de texto.",
+    "description": "The description of the extension"
+  },
+  "fontFamily": {
+    "message": "Família de fontes",
+    "description": "Label for font family"
+  },
+  "fontWeight": {
+    "message": "Peso da fonte",
+    "description": "Label for font weight"
+  },
+  "fontSize": {
+    "message": "Tamanho da fonte",
+    "description": "Label for font size"
+  },
+  "lineHeight": {
+    "message": "Altura da linha",
+    "description": "Label for line height"
+  },
+  "letterSpacing": {
+    "message": "Espaçamento entre letras",
+    "description": "Label for letter spacing"
+  },
+  "textAlign": {
+    "message": "Alinhamento do texto",
+    "description": "Label for text alignment"
+  },
+  "color": {
+    "message": "Cor",
+    "description": "Label for color"
+  },
+  "colorHex": {
+    "message": "Hex",
+    "description": "Label for HEX color format"
+  },
+  "colorLCH": {
+    "message": "Cor[LCH]",
+    "description": "Label for LCH color format"
+  },
+  "colorHCL": {
+    "message": "Cor[HCL]",
+    "description": "Label for HCL color format"
+  },
+  "copied": {
+    "message": "Copiado",
+    "description": "Text shown after copying"
+  },
+  "noFontFound": {
+    "message": "Nenhuma informação de fonte disponível",
+    "description": "Message when no font information is found"
+  },
+  "clickToCopy": {
+    "message": "Clique para copiar",
+    "description": "Tooltip for copy button"
+  },
+  "selectToViewFontInfo": {
+    "message": "Selecione para ver informações da fonte",
+    "description": "Mini tooltip hint text"
+  },
+  "downloadFont": {
+    "message": "Baixar fonte",
+    "description": "Label for download font action"
+  },
+  "downloadStarted": {
+    "message": "Baixando...",
+    "description": "Text shown when font download starts"
+  },
+  "searchingDownload": {
+    "message": "Procurando download...",
+    "description": "Text shown while searching for font download"
+  }
+}

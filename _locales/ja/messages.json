@@ -1,0 +1,78 @@
+{
+  "appName": {
+    "message": "FontDetector",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "テキスト要素にホバーするとフォント情報を表示します。",
+    "description": "The description of the extension"
+  },
+  "fontFamily": {
+    "message": "フォントファミリー",
+    "description": "Label for font family"
+  },
+  "fontWeight": {
+    "message": "フォントウェイト",
+    "description": "Label for font weight"
+  },
+  "fontSize": {
+    "message": "フォントサイズ",
+    "description": "Label for font size"
+  },
+  "lineHeight": {
+    "message": "行間",
+    "description": "Label for line height"
+  },
+  "letterSpacing": {
+    "message": "字間",
+    "description": "Label for letter spacing"
+  },
+  "textAlign": {
+    "message": "文字揃え",
+    "description": "Label for text alignment"
+  },
+  "color": {
+    "message": "色",
+    "description": "Label for color"
+  },
+  "colorHex": {
+    "message": "16進数",
+    "description": "Label for HEX color format"
+  },
+  "colorLCH": {
+    "message": "色[LCH]",
+    "description": "Label for LCH color format"
+  },
+  "colorHCL": {
+    "message": "色[HCL]",
+    "description": "Label for HCL color format"
+  },
+  "copied": {
+    "message": "コピーしました",
+    "description": "Text shown after copying"
+  },
+  "noFontFound": {
+    "message": "フォント情報がありません",
+    "description": "Message when no font information is found"
+  },
+  "clickToCopy": {
+    "message": "クリックしてコピー",
+    "description": "Tooltip for copy button"
+  },
+  "selectToViewFontInfo": {
+    "message": "選択してフォント情報を表示",
+    "description": "Mini tooltip hint text"
+  },
+  "downloadFont": {
+    "message": "フォントをダウンロード",
+    "description": "Label for download font action"
+  },
+  "downloadStarted": {
+    "message": "ダウンロード中...",
+    "description": "Text shown when font download starts"
+  },
+  "searchingDownload": {
+    "message": "ダウンロードを検索中...",
+    "description": "Text shown while searching for font download"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "appName": {
+    "message": "FontDetector",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "Zeigt Schriftinformationen beim Überfahren von Textelementen an.",
+    "description": "The description of the extension"
+  },
+  "fontFamily": {
+    "message": "Schriftfamilie",
+    "description": "Label for font family"
+  },
+  "fontWeight": {
+    "message": "Schriftstärke",
+    "description": "Label for font weight"
+  },
+  "fontSize": {
+    "message": "Schriftgröße",
+    "description": "Label for font size"
+  },
+  "lineHeight": {
+    "message": "Zeilenhöhe",
+    "description": "Label for line height"
+  },
+  "letterSpacing": {
+    "message": "Zeichenabstand",
+    "description": "Label for letter spacing"
+  },
+  "textAlign": {
+    "message": "Textausrichtung",
+    "description": "Label for text alignment"
+  },
+  "color": {
+    "message": "Farbe",
+    "description": "Label for color"
+  },
+  "colorHex": {
+    "message": "Hex",
+    "description": "Label for HEX color format"
+  },
+  "colorLCH": {
+    "message": "Farbe[LCH]",
+    "description": "Label for LCH color format"
+  },
+  "colorHCL": {
+    "message": "Farbe[HCL]",
+    "description": "Label for HCL color format"
+  },
+  "copied": {
+    "message": "Kopiert",
+    "description": "Text shown after copying"
+  },
+  "noFontFound": {
+    "message": "Keine Schriftinformationen verfügbar",
+    "description": "Message when no font information is found"
+  },
+  "clickToCopy": {
+    "message": "Klicken zum Kopieren",
+    "description": "Tooltip for copy button"
+  },
+  "selectToViewFontInfo": {
+    "message": "Auswählen, um Schriftinfos zu sehen",
+    "description": "Mini tooltip hint text"
+  },
+  "downloadFont": {
+    "message": "Schriftart herunterladen",
+    "description": "Label for download font action"
+  },
+  "downloadStarted": {
+    "message": "Wird heruntergeladen...",
+    "description": "Text shown when font download starts"
+  },
+  "searchingDownload": {
+    "message": "Suche nach Download...",
+    "description": "Text shown while searching for font download"
+  }
+}

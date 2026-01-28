@@ -1,6 +1,6 @@
 {
   "appName": {
-    "message": "字体检测器",
+    "message": "FontDetector",
     "description": "扩展程序名称"
   },
   "appDesc": {
@@ -40,11 +40,11 @@
     "description": "十六进制颜色格式标签"
   },
   "colorLCH": {
-    "message": "LCH",
+    "message": "颜色[LCH]",
     "description": "LCH颜色格式标签"
   },
   "colorHCL": {
-    "message": "HCL",
+    "message": "颜色[HCL]",
     "description": "HCL颜色格式标签"
   },
   "copied": {
@@ -58,5 +58,21 @@
   "clickToCopy": {
     "message": "点击复制",
     "description": "复制按钮的提示"
+  },
+  "selectToViewFontInfo": {
+    "message": "选择文本查看字体信息",
+    "description": "迷你提示框提示文本"
+  },
+  "downloadFont": {
+    "message": "下载字体",
+    "description": "下载字体操作标签"
+  },
+  "downloadStarted": {
+    "message": "下载中...",
+    "description": "字体下载开始时显示的文本"
+  },
+  "searchingDownload": {
+    "message": "搜索下载中...",
+    "description": "搜索字体下载时显示的文本"
   }
 } 

@@ -1,0 +1,305 @@
+/**
+ * FontDetector Content Script Styles
+ * These styles are injected via manifest.json for better performance
+ */
+
+/* ============================================================================
+  BASE STYLES
+  ============================================================================ */
+.font-detector {
+  color: #A8A8A8;
+  z-index: 2147483647 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'PingFang TC',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei',
+    'Microsoft JhengHei', 'Yu Gothic', 'YuGothic', 'Noto Sans CJK SC',
+    'Noto Sans CJK TC', 'Noto Sans CJK JP', sans-serif;
+}
+
+.font-detector span {
+  color: #fff;
+}
+
+/* ============================================================================
+   MINI TOOLTIP
+   ============================================================================ */
+#miniTooltip {
+  position: fixed;
+  padding: 4px 8px;
+  background-color: rgba(30, 30, 30, 0.95);
+  border: 1px solid #2F2F2F;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #fff;
+  pointer-events: none;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'PingFang TC',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei',
+    'Microsoft JhengHei', 'Yu Gothic', 'YuGothic', 'Noto Sans CJK SC',
+    'Noto Sans CJK TC', 'Noto Sans CJK JP', sans-serif;
+  white-space: nowrap;
+  opacity: 0;
+  display: none;
+  transition: opacity 0.15s ease-out;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2147483647;
+}
+
+#miniTooltip.visible {
+  opacity: 1;
+  display: block;
+}
+
+/* ============================================================================
+   MAIN TOOLTIP & FIXED TOOLTIP
+   ============================================================================ */
+#fontInfoTooltip,
+.fixed-tooltip {
+  border: 1px solid #2F2F2F;
+  background-color: rgba(30, 30, 30, 0.85);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'PingFang TC',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei',
+    'Microsoft JhengHei', 'Yu Gothic', 'YuGothic', 'Noto Sans CJK SC',
+    'Noto Sans CJK TC', 'Noto Sans CJK JP', sans-serif;
+  padding: 16px 16px;
+  border-radius: 16px;
+  word-wrap: break-word;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease-in-out;
+  opacity: 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  width: 250px;
+  transform: translateY(-5px);
+  pointer-events: none;
+}
+
+#fontInfoTooltip {
+  position: fixed;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: opacity 0.2s ease-in-out;
+  opacity: 0;
+  display: none;
+}
+
+#fontInfoTooltip.visible {
+  opacity: 1;
+  display: block;
+}
+
+.fixed-tooltip {
+  position: absolute;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  display: block;
+}
+
+.fixed-tooltip.visible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.fixed-tooltip[data-is-selection-tooltip="true"] {
+  /* Selection tooltip specific styles */
+}
+
+/* ============================================================================
+   TOOLTIP CONTENT
+   ============================================================================ */
+#fontInfoTooltip h1,
+.fixed-tooltip h1 {
+  display: none;
+}
+
+#fontInfoTooltip div,
+.fixed-tooltip div {
+  display: flex;
+  flex-direction: column;
+  color: #A8A8A8;
+  font-size: 13px;
+  margin-bottom: 6px;
+  gap: 2px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'PingFang TC',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei',
+    'Microsoft JhengHei', 'Yu Gothic', 'YuGothic', 'Noto Sans CJK SC',
+    'Noto Sans CJK TC', 'Noto Sans CJK JP', sans-serif;
+}
+
+#fontInfoTooltip div span,
+.fixed-tooltip div span {
+  color: #FFFFFF;
+  font-size: 14px;
+  margin-left: 0px;
+  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'PingFang TC',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei',
+    'Microsoft JhengHei', 'Yu Gothic', 'YuGothic', 'Noto Sans CJK SC',
+    'Noto Sans CJK TC', 'Noto Sans CJK JP', sans-serif;
+}
+
+#fontInfoTooltip a,
+.fixed-tooltip a {
+  text-decoration: none;
+  color: inherit;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'PingFang TC',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei',
+    'Microsoft JhengHei', 'Yu Gothic', 'YuGothic', 'Noto Sans CJK SC',
+    'Noto Sans CJK TC', 'Noto Sans CJK JP', sans-serif;
+}
+
+/* ============================================================================
+   COLOR PREVIEW
+   ============================================================================ */
+.color-preview {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  vertical-align: middle;
+}
+
+.color-value-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* ============================================================================
+   CLOSE BUTTON
+   ============================================================================ */
+.close-button {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  pointer-events: auto !important;
+}
+
+.close-button:hover {
+  background-color: rgba(80, 80, 80, 0.9);
+}
+
+.close-button svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* ============================================================================
+   COPY ICON
+   ============================================================================ */
+.copy-icon {
+  width: 24px;
+  height: 24px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  background-color: transparent;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'PingFang TC',
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Microsoft YaHei',
+    'Microsoft JhengHei', 'Yu Gothic', 'YuGothic', 'Noto Sans CJK SC',
+    'Noto Sans CJK TC', 'Noto Sans CJK JP', sans-serif;
+}
+
+.copy-icon:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.copy-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* ============================================================================
+   VALUE WITH COPY BUTTON
+   ============================================================================ */
+.value-with-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ============================================================================
+   POINTER EVENTS
+   ============================================================================ */
+#fontInfoTooltip {
+  pointer-events: none;
+}
+
+#fontInfoTooltip .copy-icon {
+  pointer-events: auto;
+}
+
+/* ============================================================================
+   FONT FAMILY VALUE
+   ============================================================================ */
+
+.font-family-value {
+  cursor: default;
+  display: inline;
+  text-decoration: none;
+  pointer-events: none;
+}
+
+.font-family-value[data-download-status="pending"],
+.font-family-value[data-download-status="searching"] {
+  opacity: 1;
+}
+
+span.font-family-value.has-download {
+  text-decoration: underline;
+  -webkit-text-decoration: underline;
+  text-decoration-color: #FFFFFF;
+  -webkit-text-decoration-color: #FFFFFF;
+  text-decoration-style: solid;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+span.font-family-value.has-download:hover {
+  text-decoration: underline;
+  -webkit-text-decoration: underline;
+  text-decoration-color: #2596FF;
+  -webkit-text-decoration-color: #2596FF;
+  text-decoration-style: solid;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  color: #2596FF;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.font-family-value[data-download-status="not-found"],
+.font-family-value[data-download-status="error"] {
+  cursor: default;
+  text-decoration: none;
+  pointer-events: none;
+}
